@@ -10,7 +10,7 @@ public class UdpClientPosition : MonoBehaviour
     void Start() {
 
         client = new UdpClient();
-        client.Connect("127.0.0.1", 5001);
+        client.Connect("10.57.1.150", 5001);
 
     }
 
