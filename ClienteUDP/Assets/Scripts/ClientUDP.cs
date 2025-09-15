@@ -2,28 +2,31 @@ using UnityEngine;
 using System.Net.Sockets;
 using System.Text;
 
-public class UdpClientUnity : MonoBehaviour {
+public class UdpClientPosition : MonoBehaviour 
+{
 
     UdpClient client;
+    Vector3 remotePos = Vector3.zero;
     void Start() {
 
         client = new UdpClient();
-        client.Connect("127.0.0.1", 5000);
-        Debug.Log("Cliente conectado ao servidor");
+        client.Connect("127.0.0.1", 5001);
 
     }
 
     void Update() {
+// Movimento local
 
-        if (Input.GetKeyDown(KeyCode.Space)) 
-        {
-            string msg = "Olá do cliente Unity!";
-            byte[] data = Encoding.UTF8.GetBytes(msg);
+        float h = Input.GetAxis("Horizontal");
+        float v = Input.GetAxis("Vertical");
 
-            client.Send(data, data.Length);
-            Debug.Log("Mensagem enviada: " + msg);
+        transform.Translate(new Vector3(h, v, 0) * Time.deltaTime * 5);
 
-        }
+// Enviar posição
+        string msg = transform.position.x + "," + transform.position.y;
+        byte[] data = Encoding.UTF8.GetBytes(msg);
+
+        client.Send(data, data.Length);
 
     }
 
