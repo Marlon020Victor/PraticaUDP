@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Net;
 using System.Text;
 using System.Threading;
+using System.Globalization;
 
 public class UdpClientEcho : MonoBehaviour {
 
@@ -18,7 +19,7 @@ public class UdpClientEcho : MonoBehaviour {
 
         client = new UdpClient();
 
-        serverEP = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001);
+        serverEP = new IPEndPoint(IPAddress.Parse("10.57.1.151"), 5001);
 
         client.Connect(serverEP);
 
@@ -36,8 +37,7 @@ public class UdpClientEcho : MonoBehaviour {
 
         localCube.transform.Translate(new Vector3(h, v, 0) * Time.deltaTime * 5);
 
-        string msg = localCube.transform.position.x +
-                     "," + localCube.transform.position.y;
+        string msg = localCube.transform.position.x.ToString("F2", CultureInfo.InvariantCulture) + ";" + localCube.transform.position.y.ToString("F2", CultureInfo.InvariantCulture);
 
         byte[] data = Encoding.UTF8.GetBytes(msg);
 
@@ -60,17 +60,12 @@ public class UdpClientEcho : MonoBehaviour {
 
             byte[] data = client.Receive(ref remoteEP);
 
-            string msg =
-                Encoding.UTF8.GetString(data);
+            string msg = Encoding.UTF8.GetString(data);
 
-            string[] parts = msg.Split(',');
+            string[] parts = msg.Split(';');
 
-            if (parts.Length == 2) {
-
-                float x = float.Parse(parts[0]);
-
-                float y = float.Parse(parts[1]);
-
+            if (parts.Length == 2) { float x =
+                    float.Parse(parts[0], CultureInfo.InvariantCulture); float y = float.Parse(parts[1],CultureInfo.InvariantCulture);
                 echoPos = new Vector3(x, y, 0);
 
             }
