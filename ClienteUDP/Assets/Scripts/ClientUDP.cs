@@ -23,7 +23,7 @@ public class UdpClientWithId : MonoBehaviour
         client = new UdpClient();
 
         serverEP = new
-            IPEndPoint(IPAddress.Parse("127.0.0.1"),
+            IPEndPoint(IPAddress.Parse("10.57.1.150"),
                 5001);
 
         client.Connect(serverEP);
