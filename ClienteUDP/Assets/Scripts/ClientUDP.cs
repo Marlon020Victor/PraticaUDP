@@ -5,31 +5,47 @@ using System.Text;
 using System.Threading;
 using System.Globalization;
 
-public class UdpClientEcho : MonoBehaviour {
+public class UdpClientWithId : MonoBehaviour
+{
 
     UdpClient client;
+
     Thread receiveThread;
+
     IPEndPoint serverEP;
 
+    int myId = -1;
+
     public GameObject localCube;
-    public GameObject echoCube;
-    Vector3 echoPos = Vector3.zero;
 
     void Start() {
 
         client = new UdpClient();
 
-        serverEP = new IPEndPoint(IPAddress.Parse("10.57.1.151"), 5001);
+        serverEP = new
+            IPEndPoint(IPAddress.Parse("127.0.0.1"),
+                5001);
 
         client.Connect(serverEP);
+
+// Thread para ouvir respostas do servidor
 
         receiveThread = new Thread(ReceiveData);
 
         receiveThread.Start();
 
+// Envia mensagem inicial para o servidor
+
+        byte[] hello =
+            Encoding.UTF8.GetBytes("HELLO");
+
+        client.Send(hello, hello.Length);
+
     }
 
     void Update() {
+
+// Movimenta o cubo local
 
         float h = Input.GetAxis("Horizontal");
 
@@ -37,17 +53,20 @@ public class UdpClientEcho : MonoBehaviour {
 
         localCube.transform.Translate(new Vector3(h, v, 0) * Time.deltaTime * 5);
 
-        string msg = localCube.transform.position.x.ToString("F2", CultureInfo.InvariantCulture) + ";" + localCube.transform.position.y.ToString("F2", CultureInfo.InvariantCulture);
+// Envia posição formatada
 
-        byte[] data = Encoding.UTF8.GetBytes(msg);
+        string msg = "POS:" +
+
+                     localCube.transform.position.x.ToString("F2",
+                         CultureInfo.InvariantCulture) + ";" +
+
+                     localCube.transform.position.y.ToString("F2",
+                         CultureInfo.InvariantCulture);
+
+        byte[] data =
+            Encoding.UTF8.GetBytes(msg);
 
         client.Send(data, data.Length);
-
-        if (echoCube != null)
-
-            echoCube.transform.position =
-                Vector3.Lerp(echoCube.transform.position,
-                    echoPos, Time.deltaTime * 5);
 
     }
 
@@ -58,15 +77,18 @@ public class UdpClientEcho : MonoBehaviour {
 
         while (true) {
 
-            byte[] data = client.Receive(ref remoteEP);
+            byte[] data = client.Receive(ref
+                remoteEP);
 
-            string msg = Encoding.UTF8.GetString(data);
+            string msg =
+                Encoding.UTF8.GetString(data);
 
-            string[] parts = msg.Split(';');
+            if (msg.StartsWith("ASSIGN:")) {
 
-            if (parts.Length == 2) { float x =
-                    float.Parse(parts[0], CultureInfo.InvariantCulture); float y = float.Parse(parts[1],CultureInfo.InvariantCulture);
-                echoPos = new Vector3(x, y, 0);
+                myId = int.Parse(msg.Substring(7));
+
+                Debug.Log("[Cliente] Recebi ID = " +
+                          myId);
 
             }
 
