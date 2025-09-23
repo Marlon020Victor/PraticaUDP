@@ -12,72 +12,112 @@ using System.Globalization;
 
 public class UdpClientTwoClients : MonoBehaviour {
 
-UdpClient client;
+    UdpClient client;
 
-Thread receiveThread;
+    Thread receiveThread;
 
-IPEndPoint serverEP;
+    IPEndPoint serverEP;
 
-int myId = -1;
+    int myId = -1;
 
-Vector3 remotePos = Vector3.zero;
+    Vector3 remotePos = Vector3.zero;
 
-public GameObject localCube;
+    public GameObject localCube;
 
-public GameObject remoteCube;
+    public GameObject remoteCube;
 
-void Start() {
+    void Start() {
 
-client = new UdpClient();
+        client = new UdpClient();
 
-serverEP = new
-IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001);
+        serverEP = new
+            IPEndPoint(IPAddress.Parse("10.57.1.150"), 5001);
 
-client.Connect(serverEP);
+        client.Connect(serverEP);
 
-receiveThread = new Thread(ReceiveData);
+        receiveThread = new Thread(ReceiveData);
 
-receiveThread.Start();
+        receiveThread.Start();
 
-client.Send(Encoding.UTF8.GetBytes("HELLO"), 5);
+        client.Send(Encoding.UTF8.GetBytes("HELLO"), 5);
 
-}
-void ReceiveData() {
+    }
 
-    IPEndPoint remoteEP = new
-        IPEndPoint(IPAddress.Any, 0);
+    void Update() {
 
-    while (true) {
+// Movimento local
 
-        byte[] data = client.Receive(ref remoteEP);
+        float h = Input.GetAxis("Horizontal");
 
-        string msg = Encoding.UTF8.GetString(data);
+        float v = Input.GetAxis("Vertical");
 
-        if (msg.StartsWith("ASSIGN:")) {
+        localCube.transform.Translate(new Vector3(h, v, 0) * Time.deltaTime * 5);
 
-            myId = int.Parse(msg.Substring(7));
+// Envia posição
 
-            Debug.Log("[Cliente] Meu ID = " + myId);
+        string msg = "POS:" +
 
-        }
+                     localCube.transform.position.x.ToString("F2",
+                         CultureInfo.InvariantCulture) + ";" +
 
-        else if (msg.StartsWith("POS:")) {
+                     localCube.transform.position.y.ToString("F2",
+                         CultureInfo.InvariantCulture);
 
-            string[] parts = msg.Substring(4).Split(';');
+        client.Send(Encoding.UTF8.GetBytes(msg),
+            msg.Length);
 
-            if (parts.Length == 3) {
+// Atualiza posição do outro jogador
 
-                int id = int.Parse(parts[0]);
+        remoteCube.transform.position = Vector3.Lerp(
 
-                if (id != myId) {
+            remoteCube.transform.position,
 
-                    float x = float.Parse(parts[1],
-                        CultureInfo.InvariantCulture);
+            remotePos,
 
-                    float y = float.Parse(parts[2],
-                        CultureInfo.InvariantCulture);
+            Time.deltaTime * 10f
 
-                    remotePos = new Vector3(x, y, 0);
+        );
+
+    }
+    
+    void ReceiveData() {
+
+        IPEndPoint remoteEP = new
+            IPEndPoint(IPAddress.Any, 0);
+
+        while (true) {
+
+            byte[] data = client.Receive(ref remoteEP);
+
+            string msg = Encoding.UTF8.GetString(data);
+
+            if (msg.StartsWith("ASSIGN:")) {
+
+                myId = int.Parse(msg.Substring(7));
+
+                Debug.Log("[Cliente] Meu ID = " + myId);
+
+            }
+
+            else if (msg.StartsWith("POS:")) {
+
+                string[] parts = msg.Substring(4).Split(';');
+
+                if (parts.Length == 3) {
+
+                    int id = int.Parse(parts[0]);
+
+                    if (id != myId) {
+
+                        float x = float.Parse(parts[1],
+                            CultureInfo.InvariantCulture);
+
+                        float y = float.Parse(parts[2],
+                            CultureInfo.InvariantCulture);
+
+                        remotePos = new Vector3(x, y, 0);
+
+                    }
 
                 }
 
@@ -87,14 +127,12 @@ void ReceiveData() {
 
     }
 
-}
+    void OnApplicationQuit() {
 
-void OnApplicationQuit() {
+        receiveThread.Abort();
 
-    receiveThread.Abort();
+        client.Close();
 
-    client.Close();
-
-}
+    }
 
 }
