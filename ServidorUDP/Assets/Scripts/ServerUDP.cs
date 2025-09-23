@@ -1,11 +1,19 @@
 using UnityEngine;
+
 using System.Net;
+
 using System.Net.Sockets;
+
 using System.Text;
+
 using System.Threading;
+
 using System.Collections.Generic;
 
-public class UdpServerWithId : MonoBehaviour
+using System.Globalization;
+
+public class UdpServerTwoClients :
+    MonoBehaviour
 {
 
     UdpClient server;
@@ -19,13 +27,16 @@ public class UdpServerWithId : MonoBehaviour
 
     int nextId = 1;
 
-    void Start() {
+    void Start()
+    {
 
         server = new UdpClient(5001);
 
-        anyEP = new IPEndPoint(IPAddress.Any, 0);
+        anyEP = new IPEndPoint(IPAddress.Any,
+            0);
 
-        receiveThread = new Thread(ReceiveData);
+        receiveThread = new
+            Thread(ReceiveData);
 
         receiveThread.Start();
 
@@ -33,68 +44,62 @@ public class UdpServerWithId : MonoBehaviour
 
     }
 
-    void ReceiveData() {
+    void ReceiveData()
+    {
 
-        while (true) {
+        while (true)
+        {
 
             byte[] data = server.Receive(ref anyEP);
 
             string msg = Encoding.UTF8.GetString(data);
 
-            string key = anyEP.Address.ToString() + ":" + anyEP.Port;
+            string key = anyEP.Address + ":" + anyEP.Port;
 
-// Se o cliente é novo, atribui ID
-
-            if (!clientIds.ContainsKey(key)) {
+            if (!clientIds.ContainsKey(key))
+            {
 
                 clientIds[key] = nextId++;
 
                 string assignMsg = "ASSIGN:" + clientIds[key];
 
-                byte[] assignData = Encoding.UTF8.GetBytes(assignMsg);
-
-                server.Send(assignData,
-                    assignData.Length, anyEP);
-
-                Debug.Log("Novo cliente → " + key + "recebeu ID " + clientIds[key]);
+                server.Send(Encoding.UTF8.GetBytes(assignMsg),
+                    assignMsg.Length, anyEP);
 
             }
 
             int id = clientIds[key];
 
-// Se for mensagem de posição
+            if (msg.StartsWith("POS:"))
+            {
 
-            if (msg.StartsWith("POS:")) {
+                string coords = msg.Substring(4);
 
-                string coords = msg.Substring(4); //remove "POS:"
+                string broadcast = $"POS:{id};{coords}";
 
-                string[] parts = coords.Split(';');
+                byte[] bdata =
+                    Encoding.UTF8.GetBytes(broadcast);
 
-                if (parts.Length == 2) {
+                foreach (var kvp in clientIds)
+                {
 
-                    float x = float.Parse(parts[0],
-                            System.Globalization.CultureInfo.InvariantCulture)
-                        ;
+                    var parts = kvp.Key.Split(':');
 
-                    float y = float.Parse(parts[1],
-                            System.Globalization.CultureInfo.InvariantCulture)
-                        ;
+                    IPEndPoint ep = new IPEndPoint(
 
-                    Debug.Log($"[Servidor] Recebido do ID{id} → x={x}, y={y}");
+                        IPAddress.Parse(parts[0]),
+
+                        int.Parse(parts[1])
+
+                    );
+
+                    server.Send(bdata, bdata.Length, ep);
 
                 }
 
             }
 
         }
-
-    }
-
-    void OnApplicationQuit() {
-
-        receiveThread.Abort();
-
-        server.Close();
 
     }
 
