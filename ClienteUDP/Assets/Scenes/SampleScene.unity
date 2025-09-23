@@ -386,6 +386,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   localCube: {fileID: 2096714750}
   remoteCube: {fileID: 1752689225}
+  gameCamera: {fileID: 519420031}
+  cameraLag: 0.1
+  cameraOffset: {x: 0, y: 0, z: -10}
 --- !u!1 &1752689225
 GameObject:
   m_ObjectHideFlags: 0
