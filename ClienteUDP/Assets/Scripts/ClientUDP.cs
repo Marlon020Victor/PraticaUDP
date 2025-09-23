@@ -1,12 +1,16 @@
 using UnityEngine;
+
 using System.Net.Sockets;
+
 using System.Net;
+
 using System.Text;
+
 using System.Threading;
+
 using System.Globalization;
 
-public class UdpClientWithId : MonoBehaviour
-{
+public class UdpClientTwoClients : MonoBehaviour {
 
     UdpClient client;
 
@@ -16,36 +20,32 @@ public class UdpClientWithId : MonoBehaviour
 
     int myId = -1;
 
+    Vector3 remotePos = Vector3.zero;
+
     public GameObject localCube;
+
+    public GameObject remoteCube;
 
     void Start() {
 
         client = new UdpClient();
 
         serverEP = new
-            IPEndPoint(IPAddress.Parse("10.57.1.150"),
-                5001);
+            IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001);
 
         client.Connect(serverEP);
-
-// Thread para ouvir respostas do servidor
 
         receiveThread = new Thread(ReceiveData);
 
         receiveThread.Start();
 
-// Envia mensagem inicial para o servidor
-
-        byte[] hello =
-            Encoding.UTF8.GetBytes("HELLO");
-
-        client.Send(hello, hello.Length);
+        client.Send(Encoding.UTF8.GetBytes("HELLO"), 5);
 
     }
 
     void Update() {
 
-// Movimenta o cubo local
+// Movimento local
 
         float h = Input.GetAxis("Horizontal");
 
@@ -53,7 +53,7 @@ public class UdpClientWithId : MonoBehaviour
 
         localCube.transform.Translate(new Vector3(h, v, 0) * Time.deltaTime * 5);
 
-// Envia posição formatada
+// Envia posição
 
         string msg = "POS:" +
 
@@ -63,13 +63,21 @@ public class UdpClientWithId : MonoBehaviour
                      localCube.transform.position.y.ToString("F2",
                          CultureInfo.InvariantCulture);
 
-        byte[] data =
-            Encoding.UTF8.GetBytes(msg);
+        client.Send(Encoding.UTF8.GetBytes(msg),
+            msg.Length);
 
-        client.Send(data, data.Length);
+// Atualiza posição do outro jogador
+
+        remoteCube.transform.position = Vector3.Lerp(
+
+            remoteCube.transform.position,
+
+            remotePos, Time.deltaTime * 10f
+
+        );
 
     }
-
+    
     void ReceiveData() {
 
         IPEndPoint remoteEP = new
@@ -77,18 +85,39 @@ public class UdpClientWithId : MonoBehaviour
 
         while (true) {
 
-            byte[] data = client.Receive(ref
-                remoteEP);
+            byte[] data = client.Receive(ref remoteEP);
 
-            string msg =
-                Encoding.UTF8.GetString(data);
+            string msg = Encoding.UTF8.GetString(data);
 
             if (msg.StartsWith("ASSIGN:")) {
 
                 myId = int.Parse(msg.Substring(7));
 
-                Debug.Log("[Cliente] Recebi ID = " +
-                          myId);
+                Debug.Log("[Cliente] Meu ID = " + myId);
+
+            }
+
+            else if (msg.StartsWith("POS:")) {
+
+                string[] parts = msg.Substring(4).Split(';');
+
+                if (parts.Length == 3) {
+
+                    int id = int.Parse(parts[0]);
+
+                    if (id != myId) {
+
+                        float x = float.Parse(parts[1],
+                            CultureInfo.InvariantCulture);
+
+                        float y = float.Parse(parts[2],
+                            CultureInfo.InvariantCulture);
+
+                        remotePos = new Vector3(x, y, 0);
+
+                    }
+
+                }
 
             }
 
