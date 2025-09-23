@@ -385,7 +385,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   localCube: {fileID: 2096714750}
-  echoCube: {fileID: 1752689225}
+  remoteCube: {fileID: 1752689225}
 --- !u!1 &1752689225
 GameObject:
   m_ObjectHideFlags: 0
