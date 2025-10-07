@@ -5,7 +5,9 @@ using TMPro;
 
 public class GameManager : MonoBehaviour
 {
+    public static GameManager instance;
     
+   
     [Header("Ball")]
     public GameObject ball;
     
@@ -23,9 +25,11 @@ public class GameManager : MonoBehaviour
     
     private int player1Score;
     private int player2Score;
-
+    
+   
     public void Player1Scored()
     {
+        if (player1Paddle)
         player1Score++;
         player1Text.GetComponent<TextMeshProUGUI>().text = player1Score.ToString();
     }

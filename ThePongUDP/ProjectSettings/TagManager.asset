@@ -5,6 +5,8 @@ TagManager:
   serializedVersion: 3
   tags:
   - Ball
+  - Map Limit Left
+  - Map Limit Right
   layers:
   - Default
   - TransparentFX
