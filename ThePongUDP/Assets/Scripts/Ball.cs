@@ -2,49 +2,50 @@ using UnityEngine;
 
 public class Ball : MonoBehaviour
 {
-    
     [SerializeField]
     private Rigidbody2D Rig;
 
     [SerializeField] 
     private Vector3 startPosition;
-    private float StartingSpeed;
     
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    [SerializeField]
+    private float StartingSpeed = 8f;
+    
+    private PongClientUDP networkClient;
+    
     void Start()
     {
         startPosition = transform.position;
-       BallInitialMovement();
+        networkClient = FindFirstObjectByType<PongClientUDP>();
+        
+        // Aguarda conexão para iniciar
+        Invoke("CheckAndStart", 1f);
+    }
+    
+    void CheckAndStart()
+    {
+        // Apenas o player 1 inicia a bola
+        if (networkClient != null && networkClient.myId == 1)
+        {
+            BallInitialMovement();
+        }
     }
     
     private void BallInitialMovement()
     {
-        bool isRight = UnityEngine.Random.value >= 1f;
-
-        float xVelocity = -1f;
-
-        if (isRight == true)
-        {
-            xVelocity = 1f;
-        }
+        // Direção aleatória
+        float x = Random.Range(0, 2) == 0 ? -1f : 1f;
+        float y = Random.Range(-1f, 1f);
         
-        float yVelocity = UnityEngine.Random.Range(-1f, 1f);
-        
-        Rig.velocity = new Vector2(xVelocity * StartingSpeed, yVelocity * StartingSpeed);
-    }
-    
-    private void BallInitialMovement2()
-    {
-       float x = Random.Range(0,2) == 0 ? -1 : 1;
-       float y = Random.Range(0,2) == 0 ? -1 : 1;
-       Rig.velocity = new Vector2(x * StartingSpeed, y * StartingSpeed);
+        Rig.linearVelocity = new Vector2(x * StartingSpeed, y * StartingSpeed);
     }
     
     public void Reset()
     {
-        Rig.velocity = Vector2.zero;
+        Rig.linearVelocity = Vector2.zero;
         transform.position = startPosition;
-        BallInitialMovement();
+        
+        // Aguarda um momento antes de reiniciar
+        Invoke("BallInitialMovement", 1f);
     }
-    
 }

@@ -5,25 +5,52 @@ public class Player : MonoBehaviour
 {
     [SerializeField] 
     private Rigidbody2D Rig;
-    private float MoveSpeed;
+    public float MoveSpeed = 10f;
     public Vector3 startPosition;
-
+    
+    [Header("Multiplayer")]
+    public bool isLocalPlayer = true; // Define se esse paddle é controlado localmente
+    public int playerNumber = 1; // 1 ou 2
+    
+    private PongClientUDP networkClient;
 
     private void Start()
     {
         startPosition = transform.position;
+        networkClient = FindFirstObjectByType<PongClientUDP>();
     }
 
-    // Update is called once per frame
     void Update()
     {
-        PlayMovement();
+        // Apenas o jogador local controla seu paddle
+        if (networkClient != null)
+        {
+            // Player 1 controla paddle 1, Player 2 controla paddle 2
+            isLocalPlayer = (networkClient.myId == playerNumber);
+        }
+        
+        if (isLocalPlayer)
+        {
+            PlayMovement();
+        }
     }
 
     private void PlayMovement()
     {
-        bool isPressingUp = Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow);
-        bool isPressingDown = Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow);
+        bool isPressingUp = false;
+        bool isPressingDown = false;
+        
+        // Controles diferentes para cada jogador
+        if (playerNumber == 1)
+        {
+            isPressingUp = Input.GetKey(KeyCode.W);
+            isPressingDown = Input.GetKey(KeyCode.S);
+        }
+        else if (playerNumber == 2)
+        {
+            isPressingUp = Input.GetKey(KeyCode.UpArrow);
+            isPressingDown = Input.GetKey(KeyCode.DownArrow);
+        }
 
         if (isPressingUp)
         {
@@ -38,8 +65,10 @@ public class Player : MonoBehaviour
 
     public void Reset()
     {
-        Rig.velocity = Vector2.zero;
+        if (Rig != null)
+        {
+            Rig.linearVelocity = Vector2.zero;
+        }
         transform.position = startPosition;
     }
-    
 }

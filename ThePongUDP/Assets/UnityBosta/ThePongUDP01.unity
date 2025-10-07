@@ -151,7 +151,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Rig: {fileID: 0}
+  MoveSpeed: 10
   startPosition: {x: 0, y: 0, z: 0}
+  isLocalPlayer: 1
+  playerNumber: 2
 --- !u!212 &268041884
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -852,7 +855,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Rig: {fileID: 0}
+  MoveSpeed: 10
   startPosition: {x: 0, y: 0, z: 0}
+  isLocalPlayer: 1
+  playerNumber: 1
 --- !u!212 &848685789
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -1402,6 +1408,57 @@ Transform:
   - {fileID: 2064984904}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1372961491
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1372961492}
+  - component: {fileID: 1372961493}
+  m_Layer: 0
+  m_Name: ClientNetwork
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1372961492
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1372961491}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -2.7445421, y: 0.520711, z: -0.06274283}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1372961493
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1372961491}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8edb0c637f07fc941980a3f9337a8724, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  myId: -1
+  serverIP: 10.57.1.150
+  serverPort: 5001
+  player1Paddle: {fileID: 848685786}
+  player2Paddle: {fileID: 268041881}
+  ball: {fileID: 1459931630}
+  gameManager: {fileID: 709069930}
 --- !u!1 &1459931630
 GameObject:
   m_ObjectHideFlags: 0
@@ -1436,6 +1493,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   Rig: {fileID: 1459931632}
   startPosition: {x: 0, y: 0, z: 0}
+  StartingSpeed: 8
 --- !u!50 &1459931632
 Rigidbody2D:
   serializedVersion: 5
@@ -1932,3 +1990,4 @@ SceneRoots:
   - {fileID: 669782448}
   - {fileID: 1948717696}
   - {fileID: 709069931}
+  - {fileID: 1372961492}
