@@ -7,11 +7,13 @@ public class Ball : MonoBehaviour
     private Rigidbody2D Rig;
 
     [SerializeField] 
+    private Vector3 startPosition;
     private float StartingSpeed;
     
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        startPosition = transform.position;
        BallInitialMovement();
     }
     
@@ -36,6 +38,13 @@ public class Ball : MonoBehaviour
        float x = Random.Range(0,2) == 0 ? -1 : 1;
        float y = Random.Range(0,2) == 0 ? -1 : 1;
        Rig.velocity = new Vector2(x * StartingSpeed, y * StartingSpeed);
+    }
+    
+    public void Reset()
+    {
+        Rig.velocity = Vector2.zero;
+        transform.position = startPosition;
+        BallInitialMovement();
     }
     
 }
