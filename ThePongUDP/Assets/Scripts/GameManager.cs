@@ -32,12 +32,15 @@ public class GameManager : MonoBehaviour
         if (player1Paddle)
         player1Score++;
         player1Text.GetComponent<TextMeshProUGUI>().text = player1Score.ToString();
+        Debug.Log("O score mudou!");
     }
     
     public void Player2Scored()
     {
+        if (player2Paddle)
         player2Score++;
         player2Text.GetComponent<TextMeshProUGUI>().text = player2Score.ToString();
+        Debug.Log("O score mudou!");
     }
 
     private void ResetPosition()

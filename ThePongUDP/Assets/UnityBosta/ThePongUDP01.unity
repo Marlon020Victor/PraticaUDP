@@ -275,7 +275,7 @@ GameObject:
   - component: {fileID: 368268668}
   m_Layer: 0
   m_Name: RightMapLimit
-  m_TagString: Untagged
+  m_TagString: Map Limit Right
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1452,8 +1452,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8edb0c637f07fc941980a3f9337a8724, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  myId: -1
-  serverIP: 10.57.1.150
+  myId: 1
+  serverIP: 26.203.179.47
   serverPort: 5001
   player1Paddle: {fileID: 848685786}
   player2Paddle: {fileID: 268041881}
@@ -1640,6 +1640,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 60c13e24a7b47d54f9e059a84f782ee3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  Game: {fileID: 709069929}
+  gameManager: {fileID: 709069930}
 --- !u!1 &1622854027
 GameObject:
   m_ObjectHideFlags: 0

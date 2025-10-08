@@ -15,7 +15,7 @@ public class PongClientUDP : MonoBehaviour
     private bool gameStarted = false;
     
     [Header("Configurações do Servidor")]
-    public string serverIP = "127.0.0.1";
+    public string serverIP = "26.203.179.47";
     public int serverPort = 5001;
     
     [Header("Referências do Jogo")]
