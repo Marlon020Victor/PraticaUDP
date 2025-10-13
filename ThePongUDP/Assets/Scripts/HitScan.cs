@@ -7,8 +7,8 @@ public class HitScan : MonoBehaviour
     public GameObject Game;
     public GameManager gameManager;
     private void Start()
-    { 
-        gameManager = Game.GetComponent<GameManager>();
+    {
+        GameManager gameManager = Game.GetComponent<GameManager>();
     }
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -16,13 +16,12 @@ public class HitScan : MonoBehaviour
     {
         if (collision.gameObject.tag == "Map Limit Left")
         {
-            gameManager.Player2Scored();
-
+            gameManager.Player1Scored();
         }
         
         if (collision.gameObject.tag == "Map Limit Right")
         {
-            gameManager.Player1Scored();
+            gameManager.Player2Scored();
         }
         
     }
