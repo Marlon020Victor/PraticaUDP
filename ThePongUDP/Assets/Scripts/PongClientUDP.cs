@@ -36,6 +36,9 @@ public class PongClientUDP : MonoBehaviour
 
     void Start()
     {
+        // Garante que o dispatcher existe na main thread
+        _ = UnityMainThreadDispatcher.Instance();
+        
         ConnectToServer();
     }
     
