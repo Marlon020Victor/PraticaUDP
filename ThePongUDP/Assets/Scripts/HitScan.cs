@@ -4,12 +4,12 @@ public class HitScan : MonoBehaviour
 {
     public GameObject Game;
     public GameManager gameManager;
-    private PongClientUDP networkClient; // referência ao script de rede
+    public PongClientUDP networkClient; // agora configurado pelo inspetor
 
     private void Start()
     {
         gameManager = Game.GetComponent<GameManager>();
-        networkClient = FindAnyObjectByType<PongClientUDP>();
+        // NÃO usar FindAnyObjectByType() aqui!
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
