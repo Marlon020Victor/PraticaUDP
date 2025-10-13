@@ -4,31 +4,30 @@ public class HitScan : MonoBehaviour
 {
     public GameObject Game;
     public GameManager gameManager;
-    public PongClientUDP networkClient; // agora configurado pelo inspetor
+    public PongClientUDP networkClient; // atribuído no inspetor
 
     private void Start()
     {
         gameManager = Game.GetComponent<GameManager>();
-        // NÃO usar FindAnyObjectByType() aqui!
+        // Evita qualquer Find() pra não dar NullRef em tempo de rede
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        // Só o player 1 (dono da bola) decide o gol
+        // Apenas o player 1 (ou o "dono" da bola) decide quando houve gol
         if (networkClient == null || networkClient.myId != 1)
             return;
 
+        // Detecta gol e notifica o servidor, mas NÃO atualiza o placar local
         if (collision.gameObject.CompareTag("Map Limit Left"))
         {
-            gameManager.Player2Scored();
-            networkClient.SendGoalScored(2);
-            networkClient.SendReset();
+            networkClient.SendGoalScored(2); // Player 2 marcou
+            networkClient.SendReset();       // Reinicia bola
         }
         else if (collision.gameObject.CompareTag("Map Limit Right"))
         {
-            gameManager.Player1Scored();
-            networkClient.SendGoalScored(1);
-            networkClient.SendReset();
+            networkClient.SendGoalScored(1); // Player 1 marcou
+            networkClient.SendReset();       // Reinicia bola
         }
     }
 }
