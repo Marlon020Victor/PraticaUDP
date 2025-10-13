@@ -670,6 +670,8 @@ MonoBehaviour:
   player2Goal: {fileID: 368268666}
   player1Text: {fileID: 742558491}
   player2Text: {fileID: 1622854027}
+  networkClient: {fileID: 1372961493}
+  maxScore: 10
 --- !u!4 &709069931
 Transform:
   m_ObjectHideFlags: 0
