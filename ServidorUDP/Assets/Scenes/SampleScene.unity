@@ -150,7 +150,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxPlayers: 4
   minPlayers: 2
-  waitTimeBeforeStart: 10
+  waitTimeBeforeStart: 30
   threadDispatcher: {fileID: 2058999620}
 --- !u!4 &436189257
 Transform:

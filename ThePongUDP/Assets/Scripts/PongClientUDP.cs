@@ -13,7 +13,7 @@ public class PongClientUDP : MonoBehaviour
     IPEndPoint serverEP;
     
     public int myId = -1;
-    private bool gameStarted = false;
+    public bool gameStarted = false;
     public int totalPlayersConnected = 0; // NOVO: total de jogadores conectados
     
     [Header("Configurações do Servidor")]

@@ -55,9 +55,17 @@ public class Player : MonoBehaviour
     {
         if (networkClient == null || networkClient.myId == -1)
         {
-            // Sem rede ou sem ID = IA controla
+            // Sem rede ou sem ID = não faz nada ainda
             isLocalPlayer = false;
-            isAIControlled = true;
+            isAIControlled = false;
+            return;
+        }
+    
+        // Só ativa IA se o jogo já começou (gameStarted) e tem pelo menos 2 jogadores
+        if (!networkClient.gameStarted || networkClient.totalPlayersConnected < 2)
+        {
+            isLocalPlayer = false;
+            isAIControlled = false;
             return;
         }
         
