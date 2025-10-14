@@ -4,6 +4,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Globalization;
+using System.Collections.Generic;
 
 public class PongClientUDP : MonoBehaviour
 {
@@ -21,11 +22,13 @@ public class PongClientUDP : MonoBehaviour
     [Header("Referências do Jogo")]
     public GameObject player1Paddle;
     public GameObject player2Paddle;
+    public GameObject player3Paddle; // NOVO
+    public GameObject player4Paddle; // NOVO
     public GameObject ball;
     public GameManager gameManager;
     
-    // Dados recebidos da rede
-    private float remotePlayerY = 0f;
+    // Dados recebidos da rede - agora para 4 jogadores
+    private Dictionary<int, float> remotePlayersY = new Dictionary<int, float>();
     private Vector2 remoteBallPos = Vector2.zero;
     private Vector2 remoteBallVel = Vector2.zero;
     private bool updateRemoteBall = false;
@@ -38,6 +41,12 @@ public class PongClientUDP : MonoBehaviour
     {
         // Garante que o dispatcher existe na main thread
         _ = UnityMainThreadDispatcher.Instance();
+        
+        // Inicializa posições remotas
+        for (int i = 1; i <= 4; i++)
+        {
+            remotePlayersY[i] = 0f;
+        }
         
         ConnectToServer();
     }
@@ -67,18 +76,8 @@ public class PongClientUDP : MonoBehaviour
     {
         if (myId == -1 || !gameStarted) return;
         
-        // Atualiza posição do paddle remoto
-        GameObject remotePaddle = (myId == 1) ? player2Paddle : player1Paddle;
-        if (remotePaddle != null)
-        {
-            Vector3 targetPos = remotePaddle.transform.position;
-            targetPos.y = remotePlayerY;
-            remotePaddle.transform.position = Vector3.Lerp(
-                remotePaddle.transform.position,
-                targetPos,
-                Time.deltaTime * 15f
-            );
-        }
+        // Atualiza posição dos paddles remotos (todos exceto o meu)
+        UpdateRemotePaddles();
         
         // Player 1 tem autoridade sobre a bola
         if (myId == 1)
@@ -92,7 +91,7 @@ public class PongClientUDP : MonoBehaviour
         }
         else
         {
-            // Player 2 recebe e aplica posição da bola
+            // Players 2, 3 e 4 recebem e aplicam posição da bola
             if (updateRemoteBall && ball != null)
             {
                 ball.transform.position = Vector3.Lerp(
@@ -113,9 +112,42 @@ public class PongClientUDP : MonoBehaviour
         SendPaddleData();
     }
     
+    void UpdateRemotePaddles()
+    {
+        // Atualiza cada paddle que não é o meu
+        for (int i = 1; i <= 4; i++)
+        {
+            if (i == myId) continue; // Pula o meu próprio paddle
+            
+            GameObject paddle = GetPaddleById(i);
+            if (paddle != null && remotePlayersY.ContainsKey(i))
+            {
+                Vector3 targetPos = paddle.transform.position;
+                targetPos.y = remotePlayersY[i];
+                paddle.transform.position = Vector3.Lerp(
+                    paddle.transform.position,
+                    targetPos,
+                    Time.deltaTime * 15f
+                );
+            }
+        }
+    }
+    
+    GameObject GetPaddleById(int id)
+    {
+        switch (id)
+        {
+            case 1: return player1Paddle;
+            case 2: return player2Paddle;
+            case 3: return player3Paddle;
+            case 4: return player4Paddle;
+            default: return null;
+        }
+    }
+    
     void SendPaddleData()
     {
-        GameObject myPaddle = (myId == 1) ? player1Paddle : player2Paddle;
+        GameObject myPaddle = GetPaddleById(myId);
         if (myPaddle != null)
         {
             float y = myPaddle.transform.position.y;
@@ -140,9 +172,10 @@ public class PongClientUDP : MonoBehaviour
         }
     }
     
-    public void SendGoalScored(int scoringPlayer)
+    public void SendGoalScored(int scoringTeam)
     {
-        string msg = $"GOAL:{scoringPlayer};1";
+        // scoringTeam: 1 para Time Esquerdo (Players 1+3), 2 para Time Direito (Players 2+4)
+        string msg = $"GOAL:{scoringTeam};1";
         SendMessage(msg);
     }
     
@@ -179,6 +212,10 @@ public class PongClientUDP : MonoBehaviour
                 {
                     myId = int.Parse(msg.Substring(7));
                     Debug.Log($"[CLIENTE] Meu ID = {myId}");
+                    
+                    // Mostra qual time o jogador pertence
+                    string team = (myId == 1 || myId == 3) ? "ESQUERDO" : "DIREITO";
+                    Debug.Log($"[CLIENTE] Você está no TIME {team}");
                 }
                 // Servidor rejeitou conexão
                 else if (msg.StartsWith("REJECT:"))
@@ -189,9 +226,9 @@ public class PongClientUDP : MonoBehaviour
                 else if (msg.StartsWith("START"))
                 {
                     gameStarted = true;
-                    Debug.Log("[CLIENTE] Jogo iniciado!");
+                    Debug.Log("[CLIENTE] Jogo iniciado com 4 jogadores!");
                 }
-                // Posição do paddle do outro jogador
+                // Posição do paddle de outro jogador
                 else if (msg.StartsWith("PADDLE:"))
                 {
                     string[] parts = msg.Substring(7).Split(';');
@@ -200,14 +237,15 @@ public class PongClientUDP : MonoBehaviour
                         int id = int.Parse(parts[0]);
                         if (id != myId)
                         {
-                            remotePlayerY = float.Parse(parts[1], CultureInfo.InvariantCulture);
+                            float y = float.Parse(parts[1], CultureInfo.InvariantCulture);
+                            remotePlayersY[id] = y;
                         }
                     }
                 }
                 // Posição da bola
                 else if (msg.StartsWith("BALL:"))
                 {
-                    if (myId != 1) // Apenas player 2 recebe
+                    if (myId != 1) // Apenas players 2, 3 e 4 recebem
                     {
                         string[] parts = msg.Substring(5).Split(';');
                         if (parts.Length >= 4)
@@ -226,15 +264,15 @@ public class PongClientUDP : MonoBehaviour
                     string[] parts = msg.Substring(5).Split(';');
                     if (parts.Length >= 2)
                     {
-                        int scoringPlayer = int.Parse(parts[0]);
+                        int scoringTeam = int.Parse(parts[0]);
                         // Processa no main thread via flag
                         UnityMainThreadDispatcher.Instance().Enqueue(() => {
                             if (gameManager != null)
                             {
-                                if (scoringPlayer == 1)
-                                    gameManager.Player1Scored();
+                                if (scoringTeam == 1)
+                                    gameManager.Team1Scored(); // Time Esquerdo (Players 1+3)
                                 else
-                                    gameManager.Player2Scored();
+                                    gameManager.Team2Scored(); // Time Direito (Players 2+4)
                             }
                         });
                     }
@@ -268,6 +306,14 @@ public class PongClientUDP : MonoBehaviour
         if (player2Paddle != null)
         {
             player2Paddle.GetComponent<Player>().Reset();
+        }
+        if (player3Paddle != null)
+        {
+            player3Paddle.GetComponent<Player>().Reset();
+        }
+        if (player4Paddle != null)
+        {
+            player4Paddle.GetComponent<Player>().Reset();
         }
     }
 

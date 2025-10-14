@@ -9,23 +9,22 @@ public class Player : MonoBehaviour
     public Vector3 startPosition;
     
     [Header("Multiplayer")]
-    public bool isLocalPlayer = true; // Define se esse paddle é controlado localmente
-    public int playerNumber = 1; // 1 ou 2
+    public bool isLocalPlayer = true;
+    public int playerNumber = 1; // 1, 2, 3 ou 4
     
     private PongClientUDP networkClient;
-
+    
     private void Start()
     {
         startPosition = transform.position;
         networkClient = FindFirstObjectByType<PongClientUDP>();
     }
-
+    
     void Update()
     {
         // Apenas o jogador local controla seu paddle
         if (networkClient != null)
         {
-            // Player 1 controla paddle 1, Player 2 controla paddle 2
             isLocalPlayer = (networkClient.myId == playerNumber);
         }
         
@@ -34,35 +33,46 @@ public class Player : MonoBehaviour
             PlayMovement();
         }
     }
-
+    
     private void PlayMovement()
     {
         bool isPressingUp = false;
         bool isPressingDown = false;
         
-        // Controles diferentes para cada jogador
-        if (playerNumber == 1)
+        // Controles para cada jogador
+        switch (playerNumber)
         {
-            isPressingUp = Input.GetKey(KeyCode.W);
-            isPressingDown = Input.GetKey(KeyCode.S);
+            case 1: // Player 1 - W/S (lado esquerdo superior)
+                isPressingUp = Input.GetKey(KeyCode.W);
+                isPressingDown = Input.GetKey(KeyCode.S);
+                break;
+                
+            case 2: // Player 2 - Setas (lado direito superior)
+                isPressingUp = Input.GetKey(KeyCode.UpArrow);
+                isPressingDown = Input.GetKey(KeyCode.DownArrow);
+                break;
+                
+            case 3: // Player 3 - T/G (lado esquerdo inferior)
+                isPressingUp = Input.GetKey(KeyCode.T);
+                isPressingDown = Input.GetKey(KeyCode.G);
+                break;
+                
+            case 4: // Player 4 - I/K (lado direito inferior)
+                isPressingUp = Input.GetKey(KeyCode.I);
+                isPressingDown = Input.GetKey(KeyCode.K);
+                break;
         }
-        else if (playerNumber == 2)
-        {
-            isPressingUp = Input.GetKey(KeyCode.UpArrow);
-            isPressingDown = Input.GetKey(KeyCode.DownArrow);
-        }
-
+        
         if (isPressingUp)
         {
             transform.Translate(Vector2.up * MoveSpeed * Time.deltaTime);
         }
-
         if (isPressingDown)
         {
             transform.Translate(Vector2.down * MoveSpeed * Time.deltaTime);
         }
     }
-
+    
     public void Reset()
     {
         if (Rig != null)

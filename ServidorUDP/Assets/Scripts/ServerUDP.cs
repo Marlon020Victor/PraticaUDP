@@ -17,7 +17,7 @@ public class ServerUDP : MonoBehaviour
     BallData ballData = new BallData();
     
     int nextId = 1;
-    int maxPlayers = 2;
+    int maxPlayers = 4; // ALTERADO: agora suporta 4 jogadores
     
     bool ballInitialized = false;
     
@@ -44,7 +44,7 @@ public class ServerUDP : MonoBehaviour
         receiveThread = new Thread(ReceiveData);
         receiveThread.Start();
         
-        Debug.Log("[SERVIDOR] Iniciado na porta 5001");
+        Debug.Log("[SERVIDOR] Iniciado na porta 5001 - Aguardando 4 jogadores");
     }
 
     void ReceiveData()
@@ -63,7 +63,7 @@ public class ServerUDP : MonoBehaviour
                     {
                         if (clientIds.Count >= maxPlayers)
                         {
-                            string rejectMsg = "REJECT:Servidor cheio";
+                            string rejectMsg = "REJECT:Servidor cheio (4/4 jogadores)";
                             server.Send(Encoding.UTF8.GetBytes(rejectMsg), rejectMsg.Length, anyEP);
                             Debug.Log("[SERVIDOR] Rejeitado cliente - servidor cheio");
                             continue;
@@ -75,12 +75,12 @@ public class ServerUDP : MonoBehaviour
                         string assignMsg = "ASSIGN:" + nextId;
                         server.Send(Encoding.UTF8.GetBytes(assignMsg), assignMsg.Length, anyEP);
                         
-                        Debug.Log($"[SERVIDOR] Cliente {nextId} conectado");
+                        Debug.Log($"[SERVIDOR] Cliente {nextId} conectado ({clientIds.Count}/{maxPlayers})");
                         
                         if (clientIds.Count == maxPlayers)
                         {
                             BroadcastToAll("START");
-                            Debug.Log("[SERVIDOR] Jogo iniciado!");
+                            Debug.Log("[SERVIDOR] Jogo iniciado com 4 jogadores!");
                         }
                         
                         nextId++;
