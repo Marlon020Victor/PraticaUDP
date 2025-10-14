@@ -155,7 +155,7 @@ MonoBehaviour:
   startPosition: {x: 0, y: 0, z: 0}
   isLocalPlayer: 1
   playerNumber: 3
-  ball: {fileID: 0}
+  ball: {fileID: 1459931630}
   aiSpeed: 8
   aiReactionDelay: 0.2
   aiErrorMargin: 0.5
@@ -607,7 +607,7 @@ MonoBehaviour:
   startPosition: {x: 0, y: 0, z: 0}
   isLocalPlayer: 1
   playerNumber: 4
-  ball: {fileID: 0}
+  ball: {fileID: 1459931630}
   aiSpeed: 8
   aiReactionDelay: 0.2
   aiErrorMargin: 0.5
@@ -1014,7 +1014,7 @@ MonoBehaviour:
   startPosition: {x: 0, y: 0, z: 0}
   isLocalPlayer: 1
   playerNumber: 1
-  ball: {fileID: 0}
+  ball: {fileID: 1459931630}
   aiSpeed: 8
   aiReactionDelay: 0.2
   aiErrorMargin: 0.5
@@ -1694,7 +1694,7 @@ MonoBehaviour:
   startPosition: {x: 0, y: 0, z: 0}
   isLocalPlayer: 1
   playerNumber: 2
-  ball: {fileID: 0}
+  ball: {fileID: 1459931630}
   aiSpeed: 8
   aiReactionDelay: 0.2
   aiErrorMargin: 0.5
