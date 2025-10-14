@@ -11,29 +11,28 @@ public class ServerUDP : MonoBehaviour
     UdpClient server;
     IPEndPoint anyEP;
     Thread receiveThread;
-    
+
     Dictionary<string, int> clientIds = new Dictionary<string, int>();
     Dictionary<int, PlayerData> playerPositions = new Dictionary<int, PlayerData>();
     BallData ballData = new BallData();
-    
+
     int nextId = 1;
-    
+
     [Header("Configurações")]
     public int maxPlayers = 4;
-    public int minPlayers = 2; // NOVO: mínimo de jogadores para iniciar
-    public float waitTimeBeforeStart = 10f; // NOVO: tempo de espera antes de iniciar com menos jogadores
-    
+    public int minPlayers = 2;
+    public float waitTimeBeforeStart = 10f;
+
     private float firstPlayerConnectTime = -1f;
     private bool gameStarted = false;
-    public GameObject threadDispatcher;
-    
+
     [System.Serializable]
     public class PlayerData
     {
         public float y;
         public IPEndPoint endpoint;
     }
-    
+
     [System.Serializable]
     public class BallData
     {
@@ -50,28 +49,33 @@ public class ServerUDP : MonoBehaviour
         anyEP = new IPEndPoint(IPAddress.Any, 0);
         receiveThread = new Thread(ReceiveData);
         receiveThread.Start();
-        
+
         Debug.Log($"[SERVIDOR] Iniciado na porta 5001 - Esperando {minPlayers}-{maxPlayers} jogadores");
     }
-    
+
     void Update()
     {
-        // Verifica se deve iniciar o jogo com menos jogadores
+        // Só inicia automaticamente se tiver pelo menos o número mínimo de jogadores
         if (!gameStarted && firstPlayerConnectTime > 0)
         {
-            float waitedTime = Time.time - firstPlayerConnectTime;
-            
-            if (clientIds.Count >= minPlayers && waitedTime >= waitTimeBeforeStart)
+            float waited = Time.time - firstPlayerConnectTime;
+
+            if (clientIds.Count >= minPlayers)
             {
+                StartGame();
+            }
+            else if (waited >= waitTimeBeforeStart && clientIds.Count >= 1)
+            {
+                Debug.Log($"[SERVIDOR] Tempo limite atingido, iniciando com {clientIds.Count} jogador(es).");
                 StartGame();
             }
         }
     }
-    
+
     void StartGame()
     {
         if (gameStarted) return;
-        
+
         gameStarted = true;
         string startMsg = $"START:{clientIds.Count}";
         BroadcastToAll(startMsg);
@@ -99,15 +103,15 @@ public class ServerUDP : MonoBehaviour
                             Debug.Log("[SERVIDOR] Rejeitado cliente - servidor cheio");
                             continue;
                         }
-                        
+
                         clientIds[key] = nextId;
                         playerPositions[nextId] = new PlayerData { y = 0, endpoint = anyEP };
-                        
+
                         string assignMsg = "ASSIGN:" + nextId;
                         server.Send(Encoding.UTF8.GetBytes(assignMsg), assignMsg.Length, anyEP);
-                        
+
                         Debug.Log($"[SERVIDOR] Cliente {nextId} conectado ({clientIds.Count}/{maxPlayers})");
-                        
+
                         // Marca o tempo do primeiro jogador
                         if (clientIds.Count == 1)
                         {
@@ -115,33 +119,32 @@ public class ServerUDP : MonoBehaviour
                                 firstPlayerConnectTime = Time.time;
                             });
                         }
-                        
-                        // Inicia imediatamente se atingir o máximo
+
+                        // Inicia automaticamente se atingir o máximo
                         if (clientIds.Count == maxPlayers)
                         {
                             UnityMainThreadDispatcher.Instance().Enqueue(() => {
                                 StartGame();
                             });
                         }
-                        
+
                         nextId++;
                     }
                 }
                 else if (msg.StartsWith("PADDLE:"))
                 {
-                    if (clientIds.ContainsKey(key))
+                    // Cliente envia: PADDLE:<id>;<y>
+                    string[] parts = msg.Substring(7).Split(';');
+                    if (parts.Length >= 2)
                     {
-                        int id = clientIds[key];
-                        string[] parts = msg.Substring(7).Split(';');
-                        
-                        if (parts.Length >= 1)
-                        {
-                            float y = float.Parse(parts[0], CultureInfo.InvariantCulture);
+                        int id = int.Parse(parts[0]);
+                        float y = float.Parse(parts[1], CultureInfo.InvariantCulture);
+
+                        if (playerPositions.ContainsKey(id))
                             playerPositions[id].y = y;
-                            
-                            string broadcast = $"PADDLE:{id};{y.ToString("F3", CultureInfo.InvariantCulture)}";
-                            BroadcastToAll(broadcast);
-                        }
+
+                        // retransmite exatamente como veio
+                        BroadcastToAll(msg);
                     }
                 }
                 else if (msg.StartsWith("BALL:"))
@@ -149,14 +152,13 @@ public class ServerUDP : MonoBehaviour
                     if (clientIds.ContainsKey(key) && clientIds[key] == 1)
                     {
                         string[] parts = msg.Substring(5).Split(';');
-                        
                         if (parts.Length >= 4)
                         {
                             ballData.x = float.Parse(parts[0], CultureInfo.InvariantCulture);
                             ballData.y = float.Parse(parts[1], CultureInfo.InvariantCulture);
                             ballData.vx = float.Parse(parts[2], CultureInfo.InvariantCulture);
                             ballData.vy = float.Parse(parts[3], CultureInfo.InvariantCulture);
-                            
+
                             BroadcastToAll(msg);
                         }
                     }
@@ -165,12 +167,8 @@ public class ServerUDP : MonoBehaviour
                 {
                     if (clientIds.ContainsKey(key))
                     {
-                        string[] parts = msg.Substring(5).Split(';');
-                        if (parts.Length >= 2)
-                        {
-                            BroadcastToAll(msg);
-                            Debug.Log($"[SERVIDOR] Gol marcado! {msg}");
-                        }
+                        BroadcastToAll(msg);
+                        Debug.Log($"[SERVIDOR] Gol marcado! {msg}");
                     }
                 }
                 else if (msg.StartsWith("RESET"))
@@ -188,11 +186,11 @@ public class ServerUDP : MonoBehaviour
             }
         }
     }
-    
+
     void BroadcastToAll(string message)
     {
         byte[] data = Encoding.UTF8.GetBytes(message);
-        
+
         foreach (var kvp in clientIds)
         {
             var parts = kvp.Key.Split(':');
@@ -200,7 +198,7 @@ public class ServerUDP : MonoBehaviour
                 IPAddress.Parse(parts[0]),
                 int.Parse(parts[1])
             );
-            
+
             server.Send(data, data.Length, ep);
         }
     }
@@ -211,7 +209,7 @@ public class ServerUDP : MonoBehaviour
         {
             receiveThread.Abort();
         }
-        
+
         if (server != null)
         {
             server.Close();
