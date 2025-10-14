@@ -1612,6 +1612,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   myId: -1
+  gameStarted: 0
   totalPlayersConnected: 0
   serverIP: 10.57.10.27
   serverPort: 5001
