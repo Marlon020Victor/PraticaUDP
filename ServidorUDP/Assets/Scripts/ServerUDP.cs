@@ -17,9 +17,15 @@ public class ServerUDP : MonoBehaviour
     BallData ballData = new BallData();
     
     int nextId = 1;
-    int maxPlayers = 4; // ALTERADO: agora suporta 4 jogadores
     
-    bool ballInitialized = false;
+    [Header("Configurações")]
+    public int maxPlayers = 4;
+    public int minPlayers = 2; // NOVO: mínimo de jogadores para iniciar
+    public float waitTimeBeforeStart = 10f; // NOVO: tempo de espera antes de iniciar com menos jogadores
+    
+    private float firstPlayerConnectTime = -1f;
+    private bool gameStarted = false;
+    public GameObject threadDispatcher;
     
     [System.Serializable]
     public class PlayerData
@@ -39,12 +45,37 @@ public class ServerUDP : MonoBehaviour
 
     void Start()
     {
+        _ = UnityMainThreadDispatcher.Instance();
         server = new UdpClient(5001);
         anyEP = new IPEndPoint(IPAddress.Any, 0);
         receiveThread = new Thread(ReceiveData);
         receiveThread.Start();
         
-        Debug.Log("[SERVIDOR] Iniciado na porta 5001 - Aguardando 4 jogadores");
+        Debug.Log($"[SERVIDOR] Iniciado na porta 5001 - Esperando {minPlayers}-{maxPlayers} jogadores");
+    }
+    
+    void Update()
+    {
+        // Verifica se deve iniciar o jogo com menos jogadores
+        if (!gameStarted && firstPlayerConnectTime > 0)
+        {
+            float waitedTime = Time.time - firstPlayerConnectTime;
+            
+            if (clientIds.Count >= minPlayers && waitedTime >= waitTimeBeforeStart)
+            {
+                StartGame();
+            }
+        }
+    }
+    
+    void StartGame()
+    {
+        if (gameStarted) return;
+        
+        gameStarted = true;
+        string startMsg = $"START:{clientIds.Count}";
+        BroadcastToAll(startMsg);
+        Debug.Log($"[SERVIDOR] Jogo iniciado com {clientIds.Count} jogadores!");
     }
 
     void ReceiveData()
@@ -63,7 +94,7 @@ public class ServerUDP : MonoBehaviour
                     {
                         if (clientIds.Count >= maxPlayers)
                         {
-                            string rejectMsg = "REJECT:Servidor cheio (4/4 jogadores)";
+                            string rejectMsg = $"REJECT:Servidor cheio ({maxPlayers}/{maxPlayers} jogadores)";
                             server.Send(Encoding.UTF8.GetBytes(rejectMsg), rejectMsg.Length, anyEP);
                             Debug.Log("[SERVIDOR] Rejeitado cliente - servidor cheio");
                             continue;
@@ -77,10 +108,20 @@ public class ServerUDP : MonoBehaviour
                         
                         Debug.Log($"[SERVIDOR] Cliente {nextId} conectado ({clientIds.Count}/{maxPlayers})");
                         
+                        // Marca o tempo do primeiro jogador
+                        if (clientIds.Count == 1)
+                        {
+                            UnityMainThreadDispatcher.Instance().Enqueue(() => {
+                                firstPlayerConnectTime = Time.time;
+                            });
+                        }
+                        
+                        // Inicia imediatamente se atingir o máximo
                         if (clientIds.Count == maxPlayers)
                         {
-                            BroadcastToAll("START");
-                            Debug.Log("[SERVIDOR] Jogo iniciado com 4 jogadores!");
+                            UnityMainThreadDispatcher.Instance().Enqueue(() => {
+                                StartGame();
+                            });
                         }
                         
                         nextId++;

@@ -155,6 +155,10 @@ MonoBehaviour:
   startPosition: {x: 0, y: 0, z: 0}
   isLocalPlayer: 1
   playerNumber: 3
+  ball: {fileID: 0}
+  aiSpeed: 8
+  aiReactionDelay: 0.2
+  aiErrorMargin: 0.5
 --- !u!212 &268041884
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -603,6 +607,10 @@ MonoBehaviour:
   startPosition: {x: 0, y: 0, z: 0}
   isLocalPlayer: 1
   playerNumber: 4
+  ball: {fileID: 0}
+  aiSpeed: 8
+  aiReactionDelay: 0.2
+  aiErrorMargin: 0.5
 --- !u!212 &613016456
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -1006,6 +1014,10 @@ MonoBehaviour:
   startPosition: {x: 0, y: 0, z: 0}
   isLocalPlayer: 1
   playerNumber: 1
+  ball: {fileID: 0}
+  aiSpeed: 8
+  aiReactionDelay: 0.2
+  aiErrorMargin: 0.5
 --- !u!212 &848685789
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -1600,6 +1612,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   myId: -1
+  totalPlayersConnected: 0
   serverIP: 10.57.10.27
   serverPort: 5001
   player1Paddle: {fileID: 848685786}
@@ -1681,6 +1694,10 @@ MonoBehaviour:
   startPosition: {x: 0, y: 0, z: 0}
   isLocalPlayer: 1
   playerNumber: 2
+  ball: {fileID: 0}
+  aiSpeed: 8
+  aiReactionDelay: 0.2
+  aiErrorMargin: 0.5
 --- !u!212 &1384828347
 SpriteRenderer:
   m_ObjectHideFlags: 0

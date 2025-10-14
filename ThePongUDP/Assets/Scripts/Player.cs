@@ -12,26 +12,108 @@ public class Player : MonoBehaviour
     public bool isLocalPlayer = true;
     public int playerNumber = 1; // 1, 2, 3 ou 4
     
+    [Header("AI Settings (quando não controlado)")]
+    public GameObject ball;
+    public float aiSpeed = 8f;
+    public float aiReactionDelay = 0.2f;
+    public float aiErrorMargin = 0.5f;
+    
     private PongClientUDP networkClient;
+    private bool isAIControlled = false;
+    private float lastAIReactionTime = 0f;
+    private Vector3 aiTargetPosition;
     
     private void Start()
     {
         startPosition = transform.position;
         networkClient = FindFirstObjectByType<PongClientUDP>();
+        aiTargetPosition = transform.position;
+        
+        // Tenta encontrar a bola automaticamente se não foi atribuída
+        if (ball == null)
+        {
+            ball = GameObject.FindGameObjectWithTag("Ball");
+        }
     }
     
     void Update()
     {
-        // Apenas o jogador local controla seu paddle
-        if (networkClient != null)
-        {
-            isLocalPlayer = (networkClient.myId == playerNumber);
-        }
+        // Verifica se este paddle é controlado localmente, remotamente ou por IA
+        CheckControl();
         
         if (isLocalPlayer)
         {
             PlayMovement();
         }
+        else if (isAIControlled)
+        {
+            AIMovement();
+        }
+    }
+    
+    void CheckControl()
+    {
+        if (networkClient == null || networkClient.myId == -1)
+        {
+            // Sem rede ou sem ID = IA controla
+            isLocalPlayer = false;
+            isAIControlled = true;
+            return;
+        }
+        
+        // Se este é meu paddle, eu controlo
+        if (networkClient.myId == playerNumber)
+        {
+            isLocalPlayer = true;
+            isAIControlled = false;
+        }
+        else
+        {
+            // Se não é meu paddle, verificar se tem jogador conectado nele
+            // Players 1-4: se o ID máximo conectado é menor que meu número, uso IA
+            isLocalPlayer = false;
+            
+            // IA ativa apenas se ninguém mais controla este paddle
+            // (a rede já controla paddles de outros jogadores conectados)
+            isAIControlled = !IsPlayerConnected(playerNumber);
+        }
+    }
+    
+    bool IsPlayerConnected(int playerId)
+    {
+        if (networkClient == null) return false;
+        
+        // Se o total de jogadores conectados é menor que este ID, não tem jogador
+        // Exemplo: 2 jogadores conectados = IDs 1 e 2, então 3 e 4 usam IA
+        return playerId <= networkClient.totalPlayersConnected;
+    }
+    
+    void AIMovement()
+    {
+        if (ball == null) return;
+        
+        // Atualiza posição alvo com delay de reação
+        if (Time.time - lastAIReactionTime > aiReactionDelay)
+        {
+            lastAIReactionTime = Time.time;
+            
+            // Calcula posição alvo com margem de erro para parecer mais humano
+            float targetY = ball.transform.position.y;
+            targetY += UnityEngine.Random.Range(-aiErrorMargin, aiErrorMargin);
+            
+            // Limita a posição Y baseado nos limites da tela
+            targetY = Mathf.Clamp(targetY, -4f, 4f);
+            
+            aiTargetPosition = transform.position;
+            aiTargetPosition.y = targetY;
+        }
+        
+        // Move suavemente em direção ao alvo
+        transform.position = Vector3.MoveTowards(
+            transform.position,
+            aiTargetPosition,
+            aiSpeed * Time.deltaTime
+        );
     }
     
     private void PlayMovement()

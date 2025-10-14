@@ -14,6 +14,7 @@ public class PongClientUDP : MonoBehaviour
     
     public int myId = -1;
     private bool gameStarted = false;
+    public int totalPlayersConnected = 0; // NOVO: total de jogadores conectados
     
     [Header("Configurações do Servidor")]
     public string serverIP = "26.203.179.47";
@@ -226,7 +227,22 @@ public class PongClientUDP : MonoBehaviour
                 else if (msg.StartsWith("START"))
                 {
                     gameStarted = true;
-                    Debug.Log("[CLIENTE] Jogo iniciado com 4 jogadores!");
+                    
+                    // Extrai quantos jogadores conectaram (se enviado)
+                    if (msg.Contains(":"))
+                    {
+                        string[] parts = msg.Split(':');
+                        if (parts.Length > 1)
+                        {
+                            totalPlayersConnected = int.Parse(parts[1]);
+                        }
+                    }
+                    else
+                    {
+                        totalPlayersConnected = 4; // Assume 4 se não especificado
+                    }
+                    
+                    Debug.Log($"[CLIENTE] Jogo iniciado com {totalPlayersConnected} jogadores!");
                 }
                 // Posição do paddle de outro jogador
                 else if (msg.StartsWith("PADDLE:"))
