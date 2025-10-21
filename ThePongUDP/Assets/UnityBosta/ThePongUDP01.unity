@@ -154,7 +154,7 @@ MonoBehaviour:
   MoveSpeed: 10
   startPosition: {x: 0, y: 0, z: 0}
   isLocalPlayer: 1
-  playerNumber: 3
+  playerNumber: 2
 --- !u!212 &268041884
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -273,6 +273,7 @@ GameObject:
   - component: {fileID: 368268667}
   - component: {fileID: 368268669}
   - component: {fileID: 368268668}
+  - component: {fileID: 368268670}
   m_Layer: 0
   m_Name: RightMapLimit
   m_TagString: Map Limit Right
@@ -396,6 +397,19 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!114 &368268670
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 368268666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65d17527afa64ba47974e49898bd4673, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  isTeam1Goal: 0
 --- !u!1 &419557618
 GameObject:
   m_ObjectHideFlags: 0
@@ -407,6 +421,7 @@ GameObject:
   - component: {fileID: 419557619}
   - component: {fileID: 419557621}
   - component: {fileID: 419557620}
+  - component: {fileID: 419557622}
   m_Layer: 0
   m_Name: LeftMapLimit
   m_TagString: Map Limit Left
@@ -530,6 +545,19 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!114 &419557622
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 419557618}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65d17527afa64ba47974e49898bd4673, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  isTeam1Goal: 1
 --- !u!1 &613016453
 GameObject:
   m_ObjectHideFlags: 0
@@ -1601,8 +1629,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   myId: 1
   gameStarted: 0
-  totalPlayersConnected: 4
-  serverIP: 10.57.10.27
+  totalPlayersConnected: 3
+  serverIP: 10.57.1.150
   serverPort: 5001
   player1Paddle: {fileID: 848685786}
   player2Paddle: {fileID: 1384828344}
@@ -1682,7 +1710,7 @@ MonoBehaviour:
   MoveSpeed: 10
   startPosition: {x: 0, y: 0, z: 0}
   isLocalPlayer: 1
-  playerNumber: 2
+  playerNumber: 3
 --- !u!212 &1384828347
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -1769,7 +1797,7 @@ GameObject:
   - component: {fileID: 1459931637}
   m_Layer: 0
   m_Name: Ball
-  m_TagString: Untagged
+  m_TagString: Ball
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1814,7 +1842,7 @@ Rigidbody2D:
     m_Bits: 0
   m_Interpolate: 0
   m_SleepingMode: 1
-  m_CollisionDetection: 0
+  m_CollisionDetection: 1
   m_Constraints: 4
 --- !u!212 &1459931634
 SpriteRenderer:

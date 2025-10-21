@@ -12,27 +12,39 @@ public class Ball : MonoBehaviour
     private float StartingSpeed = 8f;
 
     private PongClientUDP networkClient;
+    private bool hasStarted = false;
 
     void Start()
     {
         startPosition = transform.position;
         networkClient = FindFirstObjectByType<PongClientUDP>();
 
-        // Aguarda conexão / START para iniciar (verifica periodicamente)
-        Invoke("CheckAndStart", 1f);
+        if (networkClient == null)
+        {
+            Debug.LogError("[BALL] PongClientUDP não encontrado!");
+        }
+
+        // Aguarda o jogo começar
+        InvokeRepeating("CheckAndStart", 1f, 0.5f);
     }
 
     void CheckAndStart()
     {
-        // Só inicia a bola se eu for o player 1 (autoridade) e o jogo realmente começou
-        if (networkClient != null && networkClient.myId == 1 && networkClient.gameStarted)
+        if (hasStarted) return;
+        
+        // Só inicia se:
+        // 1. Eu sou o player 1 (autoridade)
+        // 2. O jogo começou (START recebido)
+        // 3. Tem pelo menos 2 jogadores
+        if (networkClient != null && 
+            networkClient.myId == 1 && 
+            networkClient.gameStarted &&
+            networkClient.totalPlayersConnected >= 2)
         {
             BallInitialMovement();
-        }
-        else
-        {
-            // tenta novamente enquanto não tiver autorização para iniciar
-            Invoke("CheckAndStart", 1f);
+            hasStarted = true;
+            CancelInvoke("CheckAndStart");
+            Debug.Log("[BALL] Bola iniciada!");
         }
     }
 
@@ -44,25 +56,29 @@ public class Ball : MonoBehaviour
 
         if (Rig != null)
         {
-            Rig.linearVelocity = Vector2.zero; // garante
-            Rig.linearVelocity = new Vector2(x * StartingSpeed, y * StartingSpeed);
+            Rig.velocity = Vector2.zero;
+            Rig.angularVelocity = 0f;
+            Rig.velocity = new Vector2(x * StartingSpeed, y * StartingSpeed);
         }
-        else
-        {
-            transform.position += new Vector3(x * StartingSpeed * 0.01f, y * StartingSpeed * 0.01f, 0f);
-        }
+        
+        Debug.Log($"[BALL] Velocidade inicial: ({x * StartingSpeed}, {y * StartingSpeed})");
     }
 
     public void Reset()
     {
+        Debug.Log("[BALL] Reset chamado");
+        
         if (Rig != null)
         {
-            Rig.linearVelocity = Vector2.zero;
+            Rig.velocity = Vector2.zero;
             Rig.angularVelocity = 0f;
         }
+        
         transform.position = startPosition;
+        hasStarted = false;
 
-        // Reinicia depois que o jogo mandar, aqui faz apenas espera curta e tenta iniciar (CheckAndStart fará verificação)
-        Invoke("CheckAndStart", 1f);
+        // Reinicia após 1 segundo
+        CancelInvoke("CheckAndStart");
+        InvokeRepeating("CheckAndStart", 1f, 0.5f);
     }
 }

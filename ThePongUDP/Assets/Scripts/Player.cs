@@ -1,10 +1,10 @@
-using System;
 using UnityEngine;
 
 public class Player : MonoBehaviour
 {
     [SerializeField]
     private Rigidbody2D Rig;
+    
     public float MoveSpeed = 10f;
     public Vector3 startPosition;
 
@@ -19,7 +19,11 @@ public class Player : MonoBehaviour
         startPosition = transform.position;
         networkClient = FindFirstObjectByType<PongClientUDP>();
 
-        // Por padrão não ser local até receber ASSIGN
+        if (networkClient == null)
+        {
+            Debug.LogError($"[PLAYER {playerNumber}] PongClientUDP não encontrado!");
+        }
+
         isLocalPlayer = false;
     }
 
@@ -35,18 +39,14 @@ public class Player : MonoBehaviour
 
     void CheckControl()
     {
-        // Se não temos client ou ainda não recebemos ID, não permitimos controle local
         if (networkClient == null || networkClient.myId == -1)
         {
             isLocalPlayer = false;
             return;
         }
 
-        // Definimos controle local se este paddle pertence a este cliente (myId == playerNumber)
+        // Este paddle é controlado localmente se o myId corresponde ao playerNumber
         isLocalPlayer = (networkClient.myId == playerNumber);
-
-        // Note: mesmo que gameStarted seja false, o jogador com ID pode mover seu paddle
-        // (útil para posicionamento antes do START). A bola e scoring só ocorrem após gameStarted.
     }
 
     private void PlayMovement()
@@ -78,13 +78,13 @@ public class Player : MonoBehaviour
                 break;
         }
 
-        if (isPressingUp)
+        float vertical = 0f;
+        if (isPressingUp) vertical = 1f;
+        if (isPressingDown) vertical = -1f;
+
+        if (vertical != 0f)
         {
-            transform.Translate(Vector2.up * MoveSpeed * Time.deltaTime);
-        }
-        if (isPressingDown)
-        {
-            transform.Translate(Vector2.down * MoveSpeed * Time.deltaTime);
+            transform.Translate(Vector2.up * vertical * MoveSpeed * Time.deltaTime);
         }
     }
 
@@ -95,6 +95,8 @@ public class Player : MonoBehaviour
             Rig.velocity = Vector2.zero;
             Rig.angularVelocity = 0f;
         }
+        
         transform.position = startPosition;
+        Debug.Log($"[PLAYER {playerNumber}] Reset para posição inicial");
     }
 }

@@ -14,7 +14,7 @@ public class PongClientUDP : MonoBehaviour
 
     public int myId = -1;
     public bool gameStarted = false;
-    public int totalPlayersConnected = 0; // total de jogadores conectados
+    public int totalPlayersConnected = 0;
 
     [Header("Configurações do Servidor")]
     public string serverIP = "26.203.179.47";
@@ -28,22 +28,21 @@ public class PongClientUDP : MonoBehaviour
     public GameObject ball;
     public GameManager gameManager;
 
-    // Dados recebidos da rede - agora para 4 jogadores
+    // Dados recebidos da rede
     private Dictionary<int, float> remotePlayersY = new Dictionary<int, float>();
     private Vector2 remoteBallPos = Vector2.zero;
     private Vector2 remoteBallVel = Vector2.zero;
     private bool updateRemoteBall = false;
 
     // Controle de envio
-    private float sendRate = 0.03f; // 30 vezes por segundo
+    private float sendRate = 0.03f;
     private float lastSendTime = 0f;
+    private float lastPaddleSendTime = 0f;
 
     void Start()
     {
-        // Garante que o dispatcher existe na main thread
         _ = UnityMainThreadDispatcher.Instance();
 
-        // Inicializa posições remotas
         for (int i = 1; i <= 4; i++)
         {
             remotePlayersY[i] = 0f;
@@ -63,7 +62,6 @@ public class PongClientUDP : MonoBehaviour
             receiveThread = new Thread(ReceiveData);
             receiveThread.Start();
 
-            // Envia HELLO para se registrar
             SendMessage("HELLO");
             Debug.Log("[CLIENTE] Conectado ao servidor " + serverIP + ":" + serverPort);
         }
@@ -75,13 +73,12 @@ public class PongClientUDP : MonoBehaviour
 
     void Update()
     {
-        // precisa ter um ID para operar
         if (myId == -1) return;
 
-        // Atualiza posição dos paddles remotos (todos exceto o meu)
+        // Atualiza paddles remotos
         UpdateRemotePaddles();
 
-        // Player 1 tem autoridade sobre a bola — só envia quando o jogo começou
+        // Player 1 tem autoridade sobre a bola
         if (myId == 1 && gameStarted)
         {
             if (Time.time - lastSendTime > sendRate)
@@ -92,10 +89,10 @@ public class PongClientUDP : MonoBehaviour
         }
         else
         {
-            // Players 2, 3 e 4 recebem e aplicam posição da bola quando houver updateRemoteBall
+            // Outros players recebem posição da bola
             if (updateRemoteBall && ball != null)
             {
-                ball.transform.position = Vector3.MoveTowards(
+                ball.transform.position = Vector3.Lerp(
                     ball.transform.position,
                     remoteBallPos,
                     Time.deltaTime * 20f
@@ -109,20 +106,19 @@ public class PongClientUDP : MonoBehaviour
             }
         }
 
-        // Envia posição do próprio paddle (enviamos sempre que temos myId, mesmo antes do START)
-        if (Time.time - lastSendTime > (sendRate / 2f)) // throttle leve para paddles
+        // Envia posição do próprio paddle
+        if (Time.time - lastPaddleSendTime > sendRate)
         {
             SendPaddleData();
-            lastSendTime = Time.time;
+            lastPaddleSendTime = Time.time;
         }
     }
 
     void UpdateRemotePaddles()
     {
-        // Atualiza cada paddle que não é o meu
         for (int i = 1; i <= 4; i++)
         {
-            if (i == myId) continue; // Pula o meu próprio paddle
+            if (i == myId) continue;
 
             GameObject paddle = GetPaddleById(i);
             if (paddle != null && remotePlayersY.ContainsKey(i))
@@ -156,7 +152,6 @@ public class PongClientUDP : MonoBehaviour
         if (myPaddle != null)
         {
             float y = myPaddle.transform.position.y;
-            // Envia o id também para que o servidor/cliente saiba a quem pertence
             string msg = $"PADDLE:{myId};{y.ToString("F3", CultureInfo.InvariantCulture)}";
             SendMessage(msg);
         }
@@ -182,6 +177,7 @@ public class PongClientUDP : MonoBehaviour
     {
         string msg = $"GOAL:{scoringTeam};1";
         SendMessage(msg);
+        Debug.Log($"[CLIENTE] Enviando gol do Time {scoringTeam}");
     }
 
     public void SendReset()
@@ -189,6 +185,7 @@ public class PongClientUDP : MonoBehaviour
         if (myId == 1)
         {
             SendMessage("RESET");
+            Debug.Log("[CLIENTE] Enviando comando de reset");
         }
     }
 
@@ -212,25 +209,20 @@ public class PongClientUDP : MonoBehaviour
                 byte[] data = client.Receive(ref remoteEP);
                 string msg = Encoding.UTF8.GetString(data);
 
-                // ID atribuído pelo servidor
                 if (msg.StartsWith("ASSIGN:"))
                 {
                     myId = int.Parse(msg.Substring(7));
                     Debug.Log($"[CLIENTE] Meu ID = {myId}");
 
-                    // Mostra qual time o jogador pertence
-                    string team = (myId == 1 || myId == 3) ? "ESQUERDO" : "DIREITO";
+                    string team = (myId == 1 || myId == 3) ? "ESQUERDO (1+3)" : "DIREITO (2+4)";
                     Debug.Log($"[CLIENTE] Você está no TIME {team}");
                 }
-                // Servidor rejeitou conexão
                 else if (msg.StartsWith("REJECT:"))
                 {
                     Debug.LogWarning("[CLIENTE] " + msg.Substring(7));
                 }
-                // Jogo começou (pode vir com contagem de players após ':')
                 else if (msg.StartsWith("START"))
                 {
-                    // Extrai quantos jogadores conectaram (se enviado)
                     int parsedTotal = -1;
                     if (msg.Contains(":"))
                     {
@@ -247,22 +239,13 @@ public class PongClientUDP : MonoBehaviour
                         gameStarted = true;
                         Debug.Log($"[CLIENTE] Jogo iniciado com {totalPlayersConnected} jogadores!");
                     }
-                    else if (parsedTotal > 0)
-                    {
-                        // recebeu START mas com menos de 2 — aguarda
-                        totalPlayersConnected = parsedTotal;
-                        gameStarted = false;
-                        Debug.Log($"[CLIENTE] START recebido, mas apenas {totalPlayersConnected} jogadores conectados — aguardando 2+ jogadores.");
-                    }
                     else
                     {
-                        // compatibilidade: se não vier quantidade, assume 4 (ou mantém false até o servidor realmente mandar conteudo)
-                        totalPlayersConnected = 4;
+                        totalPlayersConnected = parsedTotal > 0 ? parsedTotal : 2;
                         gameStarted = true;
-                        Debug.Log($"[CLIENTE] Jogo iniciado (sem contagem enviada).");
+                        Debug.Log($"[CLIENTE] Jogo iniciado!");
                     }
                 }
-                // Posição do paddle de outro jogador: PADDLE:<id>;<y>
                 else if (msg.StartsWith("PADDLE:"))
                 {
                     string payload = msg.Substring(7);
@@ -271,7 +254,8 @@ public class PongClientUDP : MonoBehaviour
                     {
                         int id;
                         float y;
-                        if (int.TryParse(parts[0], out id) && float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out y))
+                        if (int.TryParse(parts[0], out id) && 
+                            float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out y))
                         {
                             if (id != myId)
                             {
@@ -280,10 +264,9 @@ public class PongClientUDP : MonoBehaviour
                         }
                     }
                 }
-                // Posição da bola
                 else if (msg.StartsWith("BALL:"))
                 {
-                    if (myId != 1) // Apenas clients não-autorizados recebem e aplicam
+                    if (myId != 1)
                     {
                         string[] parts = msg.Substring(5).Split(';');
                         if (parts.Length >= 4)
@@ -301,7 +284,6 @@ public class PongClientUDP : MonoBehaviour
                         }
                     }
                 }
-                // Gol marcado
                 else if (msg.StartsWith("GOAL:"))
                 {
                     string[] parts = msg.Substring(5).Split(';');
@@ -312,14 +294,17 @@ public class PongClientUDP : MonoBehaviour
                             if (gameManager != null)
                             {
                                 if (scoringTeam == 1)
+                                {
                                     gameManager.Team1Scored();
-                                else
+                                }
+                                else if (scoringTeam == 2)
+                                {
                                     gameManager.Team2Scored();
+                                }
                             }
                         });
                     }
                 }
-                // Reset do jogo
                 else if (msg.StartsWith("RESET"))
                 {
                     UnityMainThreadDispatcher.Instance().Enqueue(() => {
@@ -337,25 +322,27 @@ public class PongClientUDP : MonoBehaviour
 
     void ResetGame()
     {
+        Debug.Log("[CLIENTE] Resetando jogo...");
+        
         if (ball != null)
         {
-            ball.GetComponent<Ball>().Reset();
+            ball.GetComponent<Ball>()?.Reset();
         }
         if (player1Paddle != null)
         {
-            player1Paddle.GetComponent<Player>().Reset();
+            player1Paddle.GetComponent<Player>()?.Reset();
         }
         if (player2Paddle != null)
         {
-            player2Paddle.GetComponent<Player>().Reset();
+            player2Paddle.GetComponent<Player>()?.Reset();
         }
         if (player3Paddle != null)
         {
-            player3Paddle.GetComponent<Player>().Reset();
+            player3Paddle.GetComponent<Player>()?.Reset();
         }
         if (player4Paddle != null)
         {
-            player4Paddle.GetComponent<Player>().Reset();
+            player4Paddle.GetComponent<Player>()?.Reset();
         }
     }
 

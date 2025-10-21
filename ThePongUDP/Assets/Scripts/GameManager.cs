@@ -1,6 +1,4 @@
 using UnityEngine;
-using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 
 public class GameManager : MonoBehaviour
@@ -10,14 +8,14 @@ public class GameManager : MonoBehaviour
     [Header("Ball")]
     public GameObject ball;
     
-    [Header("Team 1 - Left Side (Players 1 & 3)")]
+    [Header("Time 1 - Esquerdo (Players 1 & 3)")]
     public GameObject player1Paddle;
-    public GameObject player3Paddle; // NOVO
+    public GameObject player3Paddle;
     public GameObject team1Goal;
     
-    [Header("Team 2 - Right Side (Players 2 & 4)")]
+    [Header("Time 2 - Direito (Players 2 & 4)")]
     public GameObject player2Paddle;
-    public GameObject player4Paddle; // NOVO
+    public GameObject player4Paddle;
     public GameObject team2Goal;
     
     [Header("Score UI")] 
@@ -27,35 +25,65 @@ public class GameManager : MonoBehaviour
     [Header("Network")]
     public PongClientUDP networkClient;
     
-    private int team1Score; // Time Esquerdo (Players 1 + 3)
-    private int team2Score; // Time Direito (Players 2 + 4)
-    public int maxScore = 5; // pontuação máxima antes do reset
+    private int team1Score = 0; // Time Esquerdo (Players 1 + 3)
+    private int team2Score = 0; // Time Direito (Players 2 + 4)
+    public int maxScore = 5;
     
     void Awake()
     {
         if (instance == null)
+        {
             instance = this;
+        }
         else
+        {
             Destroy(gameObject);
+        }
+    }
+
+    void Start()
+    {
+        UpdateScoreUI();
     }
     
     public void Team1Scored()
     {
         team1Score++;
-        team1Text.GetComponent<TextMeshProUGUI>().text = team1Score.ToString();
-        Debug.Log($"Time 1 (Esquerdo) pontuou! Placar: {team1Score} x {team2Score}");
+        UpdateScoreUI();
+        Debug.Log($"[GAMEMANAGER] Time 1 pontuou! Placar: {team1Score} x {team2Score}");
         CheckMaxScore();
     }
     
     public void Team2Scored()
     {
         team2Score++;
-        team2Text.GetComponent<TextMeshProUGUI>().text = team2Score.ToString();
-        Debug.Log($"Time 2 (Direito) pontuou! Placar: {team1Score} x {team2Score}");
+        UpdateScoreUI();
+        Debug.Log($"[GAMEMANAGER] Time 2 pontuou! Placar: {team1Score} x {team2Score}");
         CheckMaxScore();
     }
     
-    // Mantém compatibilidade com código antigo
+    private void UpdateScoreUI()
+    {
+        if (team1Text != null)
+        {
+            TextMeshProUGUI tmp1 = team1Text.GetComponent<TextMeshProUGUI>();
+            if (tmp1 != null)
+            {
+                tmp1.text = team1Score.ToString();
+            }
+        }
+        
+        if (team2Text != null)
+        {
+            TextMeshProUGUI tmp2 = team2Text.GetComponent<TextMeshProUGUI>();
+            if (tmp2 != null)
+            {
+                tmp2.text = team2Score.ToString();
+            }
+        }
+    }
+    
+    // Compatibilidade com código antigo
     public void Player1Scored()
     {
         Team1Scored();
@@ -66,46 +94,73 @@ public class GameManager : MonoBehaviour
         Team2Scored();
     }
     
-    // Checa se algum time atingiu a pontuação máxima
     private void CheckMaxScore()
     {
-        if (team1Score >= maxScore || team2Score >= maxScore)
+        if (team1Score >= maxScore)
         {
-            string winner = team1Score >= maxScore ? "Time 1 (Esquerdo)" : "Time 2 (Direito)";
-            Debug.Log($"{winner} venceu a partida!");
-            
-            ResetAllScores();
-            
-            // Apenas o player 1 envia o comando de reset para todos via rede
-            if (networkClient != null && networkClient.myId == 1)
-            {
-                networkClient.SendReset();
-            }
+            Debug.Log($"[GAMEMANAGER] TIME 1 (ESQUERDO) VENCEU! {team1Score} x {team2Score}");
+            Invoke("ResetMatch", 3f);
+        }
+        else if (team2Score >= maxScore)
+        {
+            Debug.Log($"[GAMEMANAGER] TIME 2 (DIREITO) VENCEU! {team1Score} x {team2Score}");
+            Invoke("ResetMatch", 3f);
         }
     }
     
-    // Reseta as pontuações
+    private void ResetMatch()
+    {
+        Debug.Log("[GAMEMANAGER] Resetando partida...");
+        ResetAllScores();
+        
+        // Apenas o player 1 envia comando de reset para a rede
+        if (networkClient != null && networkClient.myId == 1)
+        {
+            networkClient.SendReset();
+        }
+    }
+    
     private void ResetAllScores()
     {
         team1Score = 0;
         team2Score = 0;
-        team1Text.GetComponent<TextMeshProUGUI>().text = "0";
-        team2Text.GetComponent<TextMeshProUGUI>().text = "0";
-        ResetPosition();
+        UpdateScoreUI();
+        ResetPositions();
     }
     
-    // Reseta a posição da bola e paddles
-    private void ResetPosition()
+    private void ResetPositions()
     {
         if (ball != null)
-            ball.GetComponent<Ball>().Reset();
+        {
+            Ball ballScript = ball.GetComponent<Ball>();
+            if (ballScript != null)
+            {
+                ballScript.Reset();
+            }
+        }
+        
         if (player1Paddle != null)
-            player1Paddle.GetComponent<Player>().Reset();
+        {
+            Player p1 = player1Paddle.GetComponent<Player>();
+            if (p1 != null) p1.Reset();
+        }
+        
         if (player2Paddle != null)
-            player2Paddle.GetComponent<Player>().Reset();
+        {
+            Player p2 = player2Paddle.GetComponent<Player>();
+            if (p2 != null) p2.Reset();
+        }
+        
         if (player3Paddle != null)
-            player3Paddle.GetComponent<Player>().Reset();
+        {
+            Player p3 = player3Paddle.GetComponent<Player>();
+            if (p3 != null) p3.Reset();
+        }
+        
         if (player4Paddle != null)
-            player4Paddle.GetComponent<Player>().Reset();
+        {
+            Player p4 = player4Paddle.GetComponent<Player>();
+            if (p4 != null) p4.Reset();
+        }
     }
 }
