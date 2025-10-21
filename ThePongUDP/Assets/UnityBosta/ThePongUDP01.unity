@@ -1629,7 +1629,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   myId: 1
   gameStarted: 0
-  totalPlayersConnected: 3
+  totalPlayersConnected: 4
   serverIP: 10.57.1.150
   serverPort: 5001
   player1Paddle: {fileID: 848685786}
