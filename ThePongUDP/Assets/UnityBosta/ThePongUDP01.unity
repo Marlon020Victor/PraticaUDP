@@ -775,7 +775,7 @@ MonoBehaviour:
   team1Text: {fileID: 742558493}
   team2Text: {fileID: 1622854029}
   networkClient: {fileID: 1372961493}
-  maxScore: 10
+  maxScore: 4
 --- !u!4 &709069931
 Transform:
   m_ObjectHideFlags: 0
