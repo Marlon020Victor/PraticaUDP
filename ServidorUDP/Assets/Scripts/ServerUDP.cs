@@ -73,7 +73,7 @@ public class ServerUDP : MonoBehaviour
 
                         string assignMsg = "ASSIGN:" + nextId;
                         server.Send(Encoding.UTF8.GetBytes(assignMsg), assignMsg.Length, anyEP);
-                        Debug.Log($"[SERVIDOR] Cliente {nextId} conectado");
+                        Debug.Log($"[SERVIDOR] Cliente {nextId} conectado de {key}");
 
                         nextId++;
 
@@ -91,8 +91,12 @@ public class ServerUDP : MonoBehaviour
                         {
                             float y = float.Parse(parts[0], CultureInfo.InvariantCulture);
                             playerPositions[id].y = y;
+                            
+                            // CRÍTICO: Inclui o ID do jogador na mensagem broadcast
                             string broadcast = $"PADDLE:{id};{y.ToString("F3", CultureInfo.InvariantCulture)}";
                             BroadcastToAll(broadcast);
+                            
+                            Debug.Log($"[SERVIDOR] Player {id} posição Y: {y:F3}");
                         }
                     }
                 }
@@ -113,9 +117,9 @@ public class ServerUDP : MonoBehaviour
                 }
                 else if (msg.StartsWith("GOAL:"))
                 {
-                    if (clientIds.ContainsKey(key))
+                    if (clientIds.ContainsKey(key) && clientIds[key] == 1)
                     {
-                        // Apenas roteia o gol
+                        // Apenas roteia o gol se vier do player 1
                         BroadcastToAll(msg);
                         Debug.Log($"[SERVIDOR] Gol marcado! {msg}");
                     }
