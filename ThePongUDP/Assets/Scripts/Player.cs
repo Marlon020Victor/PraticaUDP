@@ -1,102 +1,45 @@
 using UnityEngine;
 
+[RequireComponent(typeof(Rigidbody2D))]
 public class Player : MonoBehaviour
 {
-    [SerializeField]
+    [SerializeField] private float speed = 10f;
     private Rigidbody2D Rig;
-    
-    public float MoveSpeed = 10f;
-    public Vector3 startPosition;
-
-    [Header("Multiplayer")]
+    private Vector2 move;
     public bool isLocalPlayer = false;
-    public int playerNumber = 1; // 1, 2, 3 ou 4
 
-    private PongClientUDP networkClient;
-
-    private void Start()
+    void Awake()
     {
-        startPosition = transform.position;
-        networkClient = FindFirstObjectByType<PongClientUDP>();
-
-        if (networkClient == null)
-        {
-            Debug.LogError($"[PLAYER {playerNumber}] PongClientUDP não encontrado!");
-        }
-
-        isLocalPlayer = false;
+        Rig = GetComponent<Rigidbody2D>();
+        Rig.gravityScale = 0;
+        Rig.constraints = RigidbodyConstraints2D.FreezePositionX | RigidbodyConstraints2D.FreezeRotation;
     }
 
     void Update()
     {
-        CheckControl();
+        if (!isLocalPlayer) return;
 
+        move.y = Input.GetAxisRaw("Vertical");
+    }
+
+    void FixedUpdate()
+    {
         if (isLocalPlayer)
         {
-            PlayMovement();
+            Rig.linearVelocity = move * speed;
         }
     }
 
-    void CheckControl()
+    public void ApplyRemotePosition(float targetY)
     {
-        if (networkClient == null || networkClient.myId == -1)
-        {
-            isLocalPlayer = false;
-            return;
-        }
-
-        // Este paddle é controlado localmente se o myId corresponde ao playerNumber
-        isLocalPlayer = (networkClient.myId == playerNumber);
-    }
-
-    private void PlayMovement()
-    {
-        bool isPressingUp = false;
-        bool isPressingDown = false;
-
-        // Controles para cada jogador
-        switch (playerNumber)
-        {
-            case 1: // Player 1 - W/S
-                isPressingUp = Input.GetKey(KeyCode.W);
-                isPressingDown = Input.GetKey(KeyCode.S);
-                break;
-
-            case 2: // Player 2 - Setas
-                isPressingUp = Input.GetKey(KeyCode.UpArrow);
-                isPressingDown = Input.GetKey(KeyCode.DownArrow);
-                break;
-
-            case 3: // Player 3 - T/G
-                isPressingUp = Input.GetKey(KeyCode.T);
-                isPressingDown = Input.GetKey(KeyCode.G);
-                break;
-
-            case 4: // Player 4 - I/K
-                isPressingUp = Input.GetKey(KeyCode.I);
-                isPressingDown = Input.GetKey(KeyCode.K);
-                break;
-        }
-
-        float vertical = 0f;
-        if (isPressingUp) vertical = 1f;
-        if (isPressingDown) vertical = -1f;
-
-        if (vertical != 0f)
-        {
-            transform.Translate(Vector2.up * vertical * MoveSpeed * Time.deltaTime);
-        }
+        Vector3 pos = transform.position;
+        pos.y = Mathf.Lerp(pos.y, targetY, Time.deltaTime * 15f);
+        transform.position = pos;
     }
 
     public void Reset()
     {
-        if (Rig != null)
-        {
-            Rig.linearVelocity = Vector2.zero;
-            Rig.angularVelocity = 0f;
-        }
-        
-        transform.position = startPosition;
-        Debug.Log($"[PLAYER {playerNumber}] Reset para posição inicial");
+        Rig.linearVelocity = Vector2.zero;
+        Rig.angularVelocity = 0f;
     }
 }

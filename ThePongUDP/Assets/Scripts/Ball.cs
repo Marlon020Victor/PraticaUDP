@@ -1,84 +1,69 @@
 using UnityEngine;
 
+[RequireComponent(typeof(Rigidbody2D))]
 public class Ball : MonoBehaviour
 {
-    [SerializeField]
-    private Rigidbody2D Rig;
-
-    [SerializeField] 
-    private Vector3 startPosition;
-
-    [SerializeField]
-    private float StartingSpeed = 8f;
+    [SerializeField] private Rigidbody2D Rig;
+    [SerializeField] private float StartingSpeed = 8f;
+    [SerializeField] private Vector3 startPosition;
 
     private PongClientUDP networkClient;
     private bool hasStarted = false;
+
+    void Awake()
+    {
+        if (!Rig) Rig = GetComponent<Rigidbody2D>();
+        Rig.bodyType = RigidbodyType2D.Dynamic;
+        Rig.gravityScale = 0f;
+        Rig.simulated = true;
+        Rig.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+        Rig.sleepMode = RigidbodySleepMode2D.NeverSleep;
+    }
 
     void Start()
     {
         startPosition = transform.position;
         networkClient = FindFirstObjectByType<PongClientUDP>();
-
-        if (networkClient == null)
-        {
-            Debug.LogError("[BALL] PongClientUDP não encontrado!");
-        }
-
-        // Aguarda o jogo começar
-        InvokeRepeating("CheckAndStart", 1f, 0.5f);
+        InvokeRepeating(nameof(CheckAndStart), 0.2f, 0.2f);
     }
 
     void CheckAndStart()
     {
-        if (hasStarted) return;
-        
-        // Só inicia se:
-        // 1. Eu sou o player 1 (autoridade)
-        // 2. O jogo começou (START recebido)
-        // 3. Tem pelo menos 2 jogadores
-        if (networkClient != null && 
-            networkClient.myId == 1 && 
-            networkClient.gameStarted &&
-            networkClient.totalPlayersConnected >= 2)
+        if (hasStarted || networkClient == null) return;
+
+        if (networkClient.gameStarted && networkClient.totalPlayersConnected >= 2)
         {
-            BallInitialMovement();
+            // Apenas player 1 lança a bola
+            if (networkClient.myId == 1)
+            {
+                BallInitialMovement();
+            }
             hasStarted = true;
-            CancelInvoke("CheckAndStart");
-            Debug.Log("[BALL] Bola iniciada!");
+            CancelInvoke(nameof(CheckAndStart));
         }
     }
 
     private void BallInitialMovement()
     {
-        // Direção aleatória
         float x = Random.Range(0, 2) == 0 ? -1f : 1f;
         float y = Random.Range(-1f, 1f);
 
-        if (Rig != null)
-        {
-            Rig.linearVelocity = Vector2.zero;
-            Rig.angularVelocity = 0f;
-            Rig.linearVelocity = new Vector2(x * StartingSpeed, y * StartingSpeed);
-        }
-        
-        Debug.Log($"[BALL] Velocidade inicial: ({x * StartingSpeed}, {y * StartingSpeed})");
+        Rig.linearVelocity = Vector2.zero;
+        Rig.angularVelocity = 0f;
+        Rig.WakeUp();
+        Rig.linearVelocity = new Vector2(x * StartingSpeed, y * StartingSpeed);
+        Debug.Log($"[BALL] Lançada com velocidade ({Rig.linearVelocity.x:F2}, {Rig.linearVelocity.y:F2})");
     }
 
     public void Reset()
     {
-        Debug.Log("[BALL] Reset chamado");
-        
-        if (Rig != null)
-        {
-            Rig.linearVelocity = Vector2.zero;
-            Rig.angularVelocity = 0f;
-        }
-        
-        transform.position = startPosition;
         hasStarted = false;
+        transform.position = startPosition;
+        Rig.linearVelocity = Vector2.zero;
+        Rig.angularVelocity = 0f;
+        Rig.WakeUp();
 
-        // Reinicia após 1 segundo
-        CancelInvoke("CheckAndStart");
-        InvokeRepeating("CheckAndStart", 1f, 0.5f);
+        CancelInvoke(nameof(CheckAndStart));
+        InvokeRepeating(nameof(CheckAndStart), 0.2f, 0.2f);
     }
 }
