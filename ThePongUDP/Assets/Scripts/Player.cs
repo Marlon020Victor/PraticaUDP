@@ -92,7 +92,7 @@ public class Player : MonoBehaviour
     {
         if (Rig != null)
         {
-            Rig.velocity = Vector2.zero;
+            Rig.linearVelocity = Vector2.zero;
             Rig.angularVelocity = 0f;
         }
         

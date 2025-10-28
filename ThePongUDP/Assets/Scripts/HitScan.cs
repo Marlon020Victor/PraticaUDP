@@ -1,33 +1,41 @@
 using UnityEngine;
 
+/// <summary>
+/// Detecta quando a bola colide com os limites laterais (gol) e,
+/// se este cliente for o ID 1 (autoridade), manda o evento ao servidor.
+/// NÃO mexe no placar local diretamente; quem atualiza é a mensagem da rede.
+/// </summary>
 public class HitScan : MonoBehaviour
 {
+    [Header("Referências")]
     public GameObject Game;
-    public GameManager gameManager;
-    public PongClientUDP networkClient; // atribuído no inspetor
+    public GameManager gameManager;        // opcional
+    public PongClientUDP networkClient;    // arraste no inspetor
 
     private void Start()
     {
-        gameManager = Game.GetComponent<GameManager>();
-        // Evita qualquer Find() pra não dar NullRef em tempo de rede
+        if (Game != null && gameManager == null)
+            gameManager = Game.GetComponent<GameManager>();
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        // Apenas o player 1 (ou o "dono" da bola) decide quando houve gol
+        // Só o "host" (ID 1) decide gol e reinício
         if (networkClient == null || networkClient.myId != 1)
             return;
 
-        // Detecta gol e notifica o servidor, mas NÃO atualiza o placar local
+        // Use CompareTag com as mesmas tags dos seus colliders laterais
         if (collision.gameObject.CompareTag("Map Limit Left"))
         {
-            networkClient.SendGoalScored(2); // Player 2 marcou
-            networkClient.SendReset();       // Reinicia bola
+            // bola passou pela esquerda -> ponto do Time 2 (direita)
+            networkClient.SendGoalScored(2);
+            networkClient.SendReset();
         }
         else if (collision.gameObject.CompareTag("Map Limit Right"))
         {
-            networkClient.SendGoalScored(1); // Player 1 marcou
-            networkClient.SendReset();       // Reinicia bola
+            // bola passou pela direita -> ponto do Time 1 (esquerda)
+            networkClient.SendGoalScored(1);
+            networkClient.SendReset();
         }
     }
 }

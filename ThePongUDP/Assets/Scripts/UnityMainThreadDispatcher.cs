@@ -36,7 +36,7 @@ public class UnityMainThreadDispatcher : MonoBehaviour
         }
     }
 
-    public void Enqueue(Action action)
+    public static void Enqueue(Action action)
     {
         lock (_executionQueue)
         {

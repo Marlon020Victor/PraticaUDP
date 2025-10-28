@@ -1,84 +1,88 @@
 using UnityEngine;
 
+/// <summary>
+/// Controla kickoff e reset da bola no CLIENTE.
+/// Somente o cliente de ID 1 inicia o movimento após START e >=2 jogadores.
+/// </summary>
 public class Ball : MonoBehaviour
 {
-    [SerializeField]
-    private Rigidbody2D Rig;
-
-    [SerializeField] 
-    private Vector3 startPosition;
-
-    [SerializeField]
-    private float StartingSpeed = 8f;
+    [Header("Referências")]
+    [SerializeField] private Rigidbody2D Rig;
+    [SerializeField] private Vector3 startPosition;
+    [SerializeField] private float StartingSpeed = 8f;
 
     private PongClientUDP networkClient;
     private bool hasStarted = false;
 
-    void Start()
+    private void Awake()
     {
-        startPosition = transform.position;
-        networkClient = FindFirstObjectByType<PongClientUDP>();
-
-        if (networkClient == null)
+        networkClient = FindObjectOfType<PongClientUDP>();
+        if (Rig == null)
         {
-            Debug.LogError("[BALL] PongClientUDP não encontrado!");
+            Rig = GetComponent<Rigidbody2D>();
+            if (Rig == null)
+                Debug.LogError("[BALL] Rigidbody2D não encontrado. Arraste no campo 'Rig'.");
         }
-
-        // Aguarda o jogo começar
-        InvokeRepeating("CheckAndStart", 1f, 0.5f);
+        if (startPosition == Vector3.zero)
+            startPosition = transform.position;
     }
 
-    void CheckAndStart()
+    private void OnEnable()
+    {
+        CancelInvoke(nameof(CheckAndStart));
+        InvokeRepeating(nameof(CheckAndStart), 0.75f, 0.5f);
+    }
+
+    private void OnDisable()
+    {
+        CancelInvoke(nameof(CheckAndStart));
+    }
+
+    private void CheckAndStart()
     {
         if (hasStarted) return;
-        
-        // Só inicia se:
-        // 1. Eu sou o player 1 (autoridade)
-        // 2. O jogo começou (START recebido)
-        // 3. Tem pelo menos 2 jogadores
-        if (networkClient != null && 
-            networkClient.myId == 1 && 
-            networkClient.gameStarted &&
-            networkClient.totalPlayersConnected >= 2)
-        {
-            BallInitialMovement();
-            hasStarted = true;
-            CancelInvoke("CheckAndStart");
-            Debug.Log("[BALL] Bola iniciada!");
-        }
+        if (networkClient == null) return;
+        if (!networkClient.gameStarted) return;
+        if (networkClient.myId != 1) return;
+        if (networkClient.totalPlayersConnected < 2) return;
+
+        Debug.Log($"[BALL] Kickoff autorizado (myId={networkClient.myId}, players={networkClient.totalPlayersConnected}).");
+        BallInitialMovement();
+        hasStarted = true;
     }
 
     private void BallInitialMovement()
     {
-        // Direção aleatória
-        float x = Random.Range(0, 2) == 0 ? -1f : 1f;
-        float y = Random.Range(-1f, 1f);
+        if (Rig == null) return;
 
-        if (Rig != null)
-        {
-            Rig.velocity = Vector2.zero;
-            Rig.angularVelocity = 0f;
-            Rig.velocity = new Vector2(x * StartingSpeed, y * StartingSpeed);
-        }
-        
-        Debug.Log($"[BALL] Velocidade inicial: ({x * StartingSpeed}, {y * StartingSpeed})");
+        Rig.velocity = Vector2.zero;   // usar velocity (compat)
+        Rig.angularVelocity = 0f;
+        Rig.WakeUp();
+
+        int x = Random.value < 0.5f ? -1 : 1;
+        float y = Random.Range(-0.7f, 0.7f);
+        Vector2 dir = new Vector2(x, y).normalized;
+
+        Rig.velocity = dir * StartingSpeed;
+
+        Debug.Log($"[BALL] Bola iniciada! Vel={Rig.velocity}, pos={transform.position}");
     }
 
-    public void Reset()
+    public void ResetBall()
     {
-        Debug.Log("[BALL] Reset chamado");
-        
         if (Rig != null)
         {
             Rig.velocity = Vector2.zero;
             Rig.angularVelocity = 0f;
+            Rig.WakeUp();
         }
-        
+
         transform.position = startPosition;
         hasStarted = false;
 
-        // Reinicia após 1 segundo
-        CancelInvoke("CheckAndStart");
-        InvokeRepeating("CheckAndStart", 1f, 0.5f);
+        CancelInvoke(nameof(CheckAndStart));
+        InvokeRepeating(nameof(CheckAndStart), 1f, 0.5f);
+
+        Debug.Log("[BALL] Reset efetuado; aguardando kickoff.");
     }
 }

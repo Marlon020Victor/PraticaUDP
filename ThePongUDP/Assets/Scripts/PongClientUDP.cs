@@ -6,21 +6,32 @@ using System.Threading;
 using System.Globalization;
 using System.Collections.Generic;
 
+/// <summary>
+/// Cliente UDP do Pong:
+/// - Conecta no servidor e recebe um ID (1..4)
+/// - Envia posição do paddle local (~30 Hz)
+/// - Recebe posições dos paddles remotos e estado da bola
+/// - Responde a START/RESET/SCORE/GOAL
+/// </summary>
 public class PongClientUDP : MonoBehaviour
 {
-    UdpClient client;
-    Thread receiveThread;
-    IPEndPoint serverEP;
+    // --- Networking ---
+    private UdpClient client;
+    private Thread receiveThread;
+    private IPEndPoint serverEP;
 
-    public int myId = -1;
-    public bool gameStarted = false;
-    public int totalPlayersConnected = 0;
+    // --- Estado de jogo ---
+    [Header("Estado / Identificação")]
+    public int myId = -1;                   // ID dado pelo servidor (1..4)
+    public bool gameStarted = false;        // vira true após START
+    public int totalPlayersConnected = 0;   // contagem do START (fallback = 2)
 
-    [Header("Configurações do Servidor")]
-    public string serverIP = "26.203.179.47";
-    public int serverPort = 5001;
+    [Header("Config")]
+    public string serverIp = "127.0.0.1";
+    public int serverPort = 8051;
+    public int localPort = 0;               // 0 = porta efêmera
 
-    [Header("Referências do Jogo")]
+    [Header("Referências de Cena (arraste no Inspetor)")]
     public GameObject player1Paddle;
     public GameObject player2Paddle;
     public GameObject player3Paddle;
@@ -28,113 +39,269 @@ public class PongClientUDP : MonoBehaviour
     public GameObject ball;
     public GameManager gameManager;
 
-    // Dados recebidos da rede
-    private Dictionary<int, float> remotePlayersY = new Dictionary<int, float>();
+    // --- Buffers ---
+    private readonly Dictionary<int, float> remotePlayersY = new Dictionary<int, float>();
+
     private Vector2 remoteBallPos = Vector2.zero;
     private Vector2 remoteBallVel = Vector2.zero;
-    private bool updateRemoteBall = false;
+    private bool updateBallFromNetwork = false;
 
-    // Controle de envio
-    private float sendRate = 0.03f;
-    private float lastSendTime = 0f;
-    private float lastPaddleSendTime = 0f;
+    private float sendTimer = 0f;
+    private const float sendInterval = 0.033f; // ~30 Hz
 
-    void Start()
+    private void Awake()
     {
-        _ = UnityMainThreadDispatcher.Instance();
+        Application.runInBackground = true;
 
-        for (int i = 1; i <= 4; i++)
-        {
-            remotePlayersY[i] = 0f;
-        }
-
-        ConnectToServer();
+        // Avisos pra evitar “não vejo o outro player” por referência vazia
+        if (!player1Paddle || !player2Paddle || !player3Paddle || !player4Paddle)
+            Debug.LogWarning("[CLIENTE] Sete os 4 paddles no PongClientUDP em TODAS as máquinas.");
+        if (!ball) Debug.LogWarning("[CLIENTE] Arraste a bola no PongClientUDP.");
+        if (!gameManager) Debug.LogWarning("[CLIENTE] Arraste o GameManager no PongClientUDP.");
     }
 
-    void ConnectToServer()
+    private void Start()
     {
         try
         {
-            client = new UdpClient();
-            serverEP = new IPEndPoint(IPAddress.Parse(serverIP), serverPort);
-            client.Connect(serverEP);
+            serverEP = new IPEndPoint(IPAddress.Parse(serverIp), serverPort);
+            client = new UdpClient(localPort);
 
-            receiveThread = new Thread(ReceiveData);
+            receiveThread = new Thread(ReceiveLoop) { IsBackground = true };
             receiveThread.Start();
 
-            SendMessage("HELLO");
-            Debug.Log("[CLIENTE] Conectado ao servidor " + serverIP + ":" + serverPort);
+            Send("HELLO");
+            Debug.Log("[CLIENTE] UDP iniciado. Aguardando ID...");
         }
-        catch (System.Exception e)
+        catch (System.Exception ex)
         {
-            Debug.LogError("[CLIENTE] Erro ao conectar: " + e.Message);
+            Debug.LogError("[CLIENTE] Falha ao iniciar cliente UDP: " + ex.Message);
         }
     }
 
-    void Update()
+    private void OnDestroy()
     {
-        if (myId == -1) return;
+        try { receiveThread?.Abort(); } catch { }
+        try { client?.Close(); } catch { }
+    }
 
-        // Atualiza paddles remotos
+    private void Update()
+    {
+        // envia paddle local periodicamente
+        sendTimer += Time.deltaTime;
+        if (sendTimer >= sendInterval)
+        {
+            sendTimer = 0f;
+            SendPaddleData();
+        }
+
+        // interpola paddles remotos
         UpdateRemotePaddles();
 
-        // Player 1 tem autoridade sobre a bola
-        if (myId == 1 && gameStarted)
+        // (opcional) aplicar estado de bola vindo da rede
+        if (updateBallFromNetwork && ball != null)
         {
-            if (Time.time - lastSendTime > sendRate)
-            {
-                SendBallData();
-                lastSendTime = Time.time;
-            }
-        }
-        else
-        {
-            // Outros players recebem posição da bola
-            if (updateRemoteBall && ball != null)
-            {
-                ball.transform.position = Vector3.Lerp(
-                    ball.transform.position,
-                    remoteBallPos,
-                    Time.deltaTime * 20f
-                );
-
-                Rigidbody2D ballRig = ball.GetComponent<Rigidbody2D>();
-                if (ballRig != null)
-                {
-                    ballRig.velocity = remoteBallVel;
-                }
-            }
-        }
-
-        // Envia posição do próprio paddle
-        if (Time.time - lastPaddleSendTime > sendRate)
-        {
-            SendPaddleData();
-            lastPaddleSendTime = Time.time;
+            ball.transform.position = Vector3.Lerp(ball.transform.position, remoteBallPos, 0.5f);
+            var rb = ball.GetComponent<Rigidbody2D>();
+            if (rb != null)
+                rb.velocity = Vector2.Lerp(rb.velocity, remoteBallVel, 0.5f);
         }
     }
 
-    void UpdateRemotePaddles()
+    // =========================
+    // ========= ENVIO =========
+    // =========================
+
+    private void SendPaddleData()
     {
-        for (int i = 1; i <= 4; i++)
-        {
-            if (i == myId) continue;
+        if (myId <= 0) return;
+        var myPaddle = GetPaddleById(myId);
+        if (myPaddle == null) return;
 
-            GameObject paddle = GetPaddleById(i);
-            if (paddle != null && remotePlayersY.ContainsKey(i))
+        float y = myPaddle.transform.position.y;
+        string msg = $"PADDLE:{myId};{y.ToString(CultureInfo.InvariantCulture)}";
+        Send(msg);
+        // Debug.Log($"[CLIENTE] Enviado {msg}");
+    }
+
+    private void Send(string text)
+    {
+        try
+        {
+            byte[] data = Encoding.UTF8.GetBytes(text);
+            client.Send(data, data.Length, serverEP);
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError("[CLIENTE] Erro ao enviar: " + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Chame isso quando DETECTAR gol no cliente 'dono' (id==1).
+    /// Envia para o servidor notificar a todos.
+    /// Mando GOAL e também SCORE por compatibilidade (caso seu Server escute um dos dois).
+    /// </summary>
+    public void SendGoalScored(int team)
+    {
+        if (myId != 1) return; // só o "host" decide
+        if (team != 1 && team != 2) return;
+
+        Send($"GOAL:{team}");
+        Send($"SCORE:{team}"); // compat: se o servidor só entender SCORE
+        Debug.Log($"[CLIENTE] GOAL enviado (team {team}).");
+    }
+
+    /// <summary>
+    /// Solicita reset de rodada ao servidor (após gol).
+    /// </summary>
+    public void SendReset()
+    {
+        if (myId != 1) return; // só o "host"
+        Send("RESET");
+        Debug.Log("[CLIENTE] RESET enviado.");
+    }
+
+    // =========================
+    // ======== RECEPÇÃO =======
+    // =========================
+
+    private void ReceiveLoop()
+    {
+        IPEndPoint any = new IPEndPoint(IPAddress.Any, 0);
+
+        while (true)
+        {
+            try
             {
-                Vector3 targetPos = paddle.transform.position;
-                targetPos.y = remotePlayersY[i];
-                paddle.transform.position = Vector3.Lerp(
-                    paddle.transform.position,
-                    targetPos,
-                    Time.deltaTime * 15f
-                );
+                byte[] data = client.Receive(ref any);
+                string msg = Encoding.UTF8.GetString(data);
+                UnityMainThreadDispatcher.Enqueue(() => HandleMessage(msg));
+            }
+            catch (SocketException) { }
+            catch (ThreadAbortException) { break; }
+            catch (System.Exception ex)
+            {
+                Debug.LogError("[CLIENTE] ReceiveLoop erro: " + ex.Message);
             }
         }
     }
 
-    GameObject GetPaddleById(int id)
+    private void HandleMessage(string msg)
+    {
+        if (msg.StartsWith("ID:"))
+        {
+            if (int.TryParse(msg.Substring(3), out int id))
+            {
+                myId = id;
+                Debug.Log($"[CLIENTE] Meu ID é {myId}");
+            }
+            return;
+        }
+
+        if (msg.StartsWith("START"))
+        {
+            // START ou START:N
+            totalPlayersConnected = 2; // fallback
+            var parts = msg.Split(':');
+            if (parts.Length >= 2 && int.TryParse(parts[1], out int count) && count >= 2)
+                totalPlayersConnected = count;
+
+            gameStarted = true;
+            Debug.Log($"[CLIENTE] Jogo iniciado (players={totalPlayersConnected}).");
+            return;
+        }
+
+        if (msg.StartsWith("PADDLE:"))
+        {
+            var body = msg.Substring(7);
+            var p = body.Split(';');
+            if (p.Length == 2 &&
+                int.TryParse(p[0], out int id) &&
+                float.TryParse(p[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float y))
+            {
+                remotePlayersY[id] = y;
+            }
+            return;
+        }
+
+        if (msg.StartsWith("BALLPOS:"))
+        {
+            var body = msg.Substring(8);
+            var p = body.Split(';');
+            if (p.Length == 2 &&
+                float.TryParse(p[0], NumberStyles.Float, CultureInfo.InvariantCulture, out float x) &&
+                float.TryParse(p[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float y))
+            {
+                remoteBallPos = new Vector2(x, y);
+                updateBallFromNetwork = true;
+            }
+            return;
+        }
+
+        if (msg.StartsWith("BALLVEL:"))
+        {
+            var body = msg.Substring(8);
+            var p = body.Split(';');
+            if (p.Length == 2 &&
+                float.TryParse(p[0], NumberStyles.Float, CultureInfo.InvariantCulture, out float vx) &&
+                float.TryParse(p[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float vy))
+            {
+                remoteBallVel = new Vector2(vx, vy);
+                updateBallFromNetwork = true;
+            }
+            return;
+        }
+
+        if (msg.StartsWith("RESET"))
+        {
+            if (ball != null)
+            {
+                var b = ball.GetComponent<Ball>();
+                if (b != null) b.ResetBall();
+            }
+            Debug.Log("[CLIENTE] RESET recebido -> bola reposicionada.");
+            return;
+        }
+
+        // Aceita tanto GOAL quanto SCORE, trata igual e atualiza UI local
+        if (msg.StartsWith("GOAL:") || msg.StartsWith("SCORE:"))
+        {
+            var body = msg.Substring(msg.IndexOf(':') + 1);
+            if (int.TryParse(body, out int team))
+            {
+                if (gameManager != null)
+                {
+                    if (team == 1) gameManager.Team1Scored();
+                    else if (team == 2) gameManager.Team2Scored();
+                }
+                Debug.Log($"[CLIENTE] Placar atualizado (team {team}).");
+            }
+            return;
+        }
+    }
+
+    // =========================
+    // ===== APLICAÇÕES ========
+    // =========================
+
+    private void UpdateRemotePaddles()
+    {
+        foreach (var kv in remotePlayersY)
+        {
+            int id = kv.Key;
+            float y = kv.Value;
+            var paddle = GetPaddleById(id);
+            if (paddle == null) continue;
+            if (id == myId) continue; // o meu eu movo local
+
+            var p = paddle.transform.position;
+            p.y = Mathf.Lerp(p.y, y, 0.5f);
+            paddle.transform.position = p;
+        }
+    }
+
+    private GameObject GetPaddleById(int id)
     {
         switch (id)
         {
@@ -143,219 +310,6 @@ public class PongClientUDP : MonoBehaviour
             case 3: return player3Paddle;
             case 4: return player4Paddle;
             default: return null;
-        }
-    }
-
-    void SendPaddleData()
-    {
-        GameObject myPaddle = GetPaddleById(myId);
-        if (myPaddle != null)
-        {
-            float y = myPaddle.transform.position.y;
-            string msg = $"PADDLE:{myId};{y.ToString("F3", CultureInfo.InvariantCulture)}";
-            SendMessage(msg);
-        }
-    }
-
-    void SendBallData()
-    {
-        if (ball != null)
-        {
-            Vector3 pos = ball.transform.position;
-            Rigidbody2D ballRig = ball.GetComponent<Rigidbody2D>();
-            Vector2 vel = ballRig != null ? ballRig.velocity : Vector2.zero;
-
-            string msg = $"BALL:{pos.x.ToString("F3", CultureInfo.InvariantCulture)};" +
-                        $"{pos.y.ToString("F3", CultureInfo.InvariantCulture)};" +
-                        $"{vel.x.ToString("F3", CultureInfo.InvariantCulture)};" +
-                        $"{vel.y.ToString("F3", CultureInfo.InvariantCulture)}";
-            SendMessage(msg);
-        }
-    }
-
-    public void SendGoalScored(int scoringTeam)
-    {
-        string msg = $"GOAL:{scoringTeam};1";
-        SendMessage(msg);
-        Debug.Log($"[CLIENTE] Enviando gol do Time {scoringTeam}");
-    }
-
-    public void SendReset()
-    {
-        if (myId == 1)
-        {
-            SendMessage("RESET");
-            Debug.Log("[CLIENTE] Enviando comando de reset");
-        }
-    }
-
-    void SendMessage(string message)
-    {
-        if (client != null)
-        {
-            byte[] data = Encoding.UTF8.GetBytes(message);
-            client.Send(data, data.Length);
-        }
-    }
-
-    void ReceiveData()
-    {
-        IPEndPoint remoteEP = new IPEndPoint(IPAddress.Any, 0);
-
-        while (true)
-        {
-            try
-            {
-                byte[] data = client.Receive(ref remoteEP);
-                string msg = Encoding.UTF8.GetString(data);
-
-                if (msg.StartsWith("ASSIGN:"))
-                {
-                    myId = int.Parse(msg.Substring(7));
-                    Debug.Log($"[CLIENTE] Meu ID = {myId}");
-
-                    string team = (myId == 1 || myId == 3) ? "ESQUERDO (1+3)" : "DIREITO (2+4)";
-                    Debug.Log($"[CLIENTE] Você está no TIME {team}");
-                }
-                else if (msg.StartsWith("REJECT:"))
-                {
-                    Debug.LogWarning("[CLIENTE] " + msg.Substring(7));
-                }
-                else if (msg.StartsWith("START"))
-                {
-                    int parsedTotal = -1;
-                    if (msg.Contains(":"))
-                    {
-                        string[] parts = msg.Split(':');
-                        if (parts.Length > 1)
-                        {
-                            int.TryParse(parts[1], out parsedTotal);
-                        }
-                    }
-
-                    if (parsedTotal >= 2)
-                    {
-                        totalPlayersConnected = parsedTotal;
-                        gameStarted = true;
-                        Debug.Log($"[CLIENTE] Jogo iniciado com {totalPlayersConnected} jogadores!");
-                    }
-                    else
-                    {
-                        totalPlayersConnected = parsedTotal > 0 ? parsedTotal : 2;
-                        gameStarted = true;
-                        Debug.Log($"[CLIENTE] Jogo iniciado!");
-                    }
-                }
-                else if (msg.StartsWith("PADDLE:"))
-                {
-                    string payload = msg.Substring(7);
-                    string[] parts = payload.Split(';');
-                    if (parts.Length >= 2)
-                    {
-                        int id;
-                        float y;
-                        if (int.TryParse(parts[0], out id) && 
-                            float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out y))
-                        {
-                            if (id != myId)
-                            {
-                                remotePlayersY[id] = y;
-                            }
-                        }
-                    }
-                }
-                else if (msg.StartsWith("BALL:"))
-                {
-                    if (myId != 1)
-                    {
-                        string[] parts = msg.Substring(5).Split(';');
-                        if (parts.Length >= 4)
-                        {
-                            float x = float.Parse(parts[0], CultureInfo.InvariantCulture);
-                            float y = float.Parse(parts[1], CultureInfo.InvariantCulture);
-                            float vx = float.Parse(parts[2], CultureInfo.InvariantCulture);
-                            float vy = float.Parse(parts[3], CultureInfo.InvariantCulture);
-
-                            remoteBallPos.x = x;
-                            remoteBallPos.y = y;
-                            remoteBallVel.x = vx;
-                            remoteBallVel.y = vy;
-                            updateRemoteBall = true;
-                        }
-                    }
-                }
-                else if (msg.StartsWith("GOAL:"))
-                {
-                    string[] parts = msg.Substring(5).Split(';');
-                    if (parts.Length >= 2)
-                    {
-                        int scoringTeam = int.Parse(parts[0]);
-                        UnityMainThreadDispatcher.Instance().Enqueue(() => {
-                            if (gameManager != null)
-                            {
-                                if (scoringTeam == 1)
-                                {
-                                    gameManager.Team1Scored();
-                                }
-                                else if (scoringTeam == 2)
-                                {
-                                    gameManager.Team2Scored();
-                                }
-                            }
-                        });
-                    }
-                }
-                else if (msg.StartsWith("RESET"))
-                {
-                    UnityMainThreadDispatcher.Instance().Enqueue(() => {
-                        ResetGame();
-                    });
-                }
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogError("[CLIENTE] Erro ao receber: " + e.Message);
-                break;
-            }
-        }
-    }
-
-    void ResetGame()
-    {
-        Debug.Log("[CLIENTE] Resetando jogo...");
-        
-        if (ball != null)
-        {
-            ball.GetComponent<Ball>()?.Reset();
-        }
-        if (player1Paddle != null)
-        {
-            player1Paddle.GetComponent<Player>()?.Reset();
-        }
-        if (player2Paddle != null)
-        {
-            player2Paddle.GetComponent<Player>()?.Reset();
-        }
-        if (player3Paddle != null)
-        {
-            player3Paddle.GetComponent<Player>()?.Reset();
-        }
-        if (player4Paddle != null)
-        {
-            player4Paddle.GetComponent<Player>()?.Reset();
-        }
-    }
-
-    void OnApplicationQuit()
-    {
-        if (receiveThread != null && receiveThread.IsAlive)
-        {
-            receiveThread.Abort();
-        }
-
-        if (client != null)
-        {
-            client.Close();
         }
     }
 }
