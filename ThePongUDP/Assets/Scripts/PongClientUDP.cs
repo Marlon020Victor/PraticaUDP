@@ -67,11 +67,13 @@ public class PongClientUDP : MonoBehaviour
     {
         if (myId == -1 || !gameStarted) return;
 
+        // Aplica posições remotas dos outros jogadores
         ApplyRemotePaddle(1, paddle1);
         ApplyRemotePaddle(2, paddle2);
         ApplyRemotePaddle(3, paddle3);
         ApplyRemotePaddle(4, paddle4);
 
+        // Apenas o Player 1 envia dados da bola
         if (myId == 1)
         {
             if (Time.time - lastSendTime > sendRate)
@@ -82,6 +84,7 @@ public class PongClientUDP : MonoBehaviour
         }
         else
         {
+            // Outros jogadores recebem a posição da bola
             if (updateRemoteBall && ball != null)
             {
                 ball.transform.position = Vector3.Lerp(ball.transform.position, remoteBallPos, Time.deltaTime * 10f);
@@ -89,31 +92,28 @@ public class PongClientUDP : MonoBehaviour
                 if (rig != null) rig.linearVelocity = remoteBallVel;
             }
         }
-
-        SendPaddleData(); // envia sempre sua posição
     }
 
     void ApplyRemotePaddle(int id, GameObject paddleGO)
     {
         if (paddleGO == null) return;
-        if (myId == id) return; // eu controlo o meu
+        if (myId == id) return; // Eu controlo o meu próprio paddle
+        
         if (hasRemote[id])
         {
-            Vector3 t = paddleGO.transform.position;
-            t.y = remoteY[id];
-            paddleGO.transform.position = Vector3.Lerp(paddleGO.transform.position, t, Time.deltaTime * 15f);
+            Vector3 targetPos = paddleGO.transform.position;
+            targetPos.y = remoteY[id];
+            paddleGO.transform.position = Vector3.Lerp(paddleGO.transform.position, targetPos, Time.deltaTime * 15f);
         }
     }
 
-    void SendPaddleData()
+    // Método público para os Players enviarem suas posições
+    public void SendPaddlePosition(int playerId, float yPosition)
     {
-        GameObject myPaddle = GetPaddleById(myId);
-        if (myPaddle != null)
-        {
-            float y = myPaddle.transform.position.y;
-            string msg = $"PADDLE:{y.ToString("F3", CultureInfo.InvariantCulture)}";
-            SendMessage(msg);
-        }
+        if (myId != playerId) return; // Só envia se for o dono
+        
+        string msg = $"PADDLE:{yPosition.ToString("F3", CultureInfo.InvariantCulture)}";
+        SendMessage(msg);
     }
 
     GameObject GetPaddleById(int id)
@@ -198,6 +198,8 @@ public class PongClientUDP : MonoBehaviour
                     {
                         int id = int.Parse(parts[0]);
                         float y = float.Parse(parts[1], CultureInfo.InvariantCulture);
+                        
+                        // Só aceita se for de outro jogador
                         if (id >= 1 && id <= 4 && id != myId)
                         {
                             remoteY[id] = y;
@@ -207,7 +209,7 @@ public class PongClientUDP : MonoBehaviour
                 }
                 else if (msg.StartsWith("BALL:"))
                 {
-                    if (myId != 1)
+                    if (myId != 1) // Apenas clientes não-host recebem dados da bola
                     {
                         string[] parts = msg.Substring(5).Split(';');
                         if (parts.Length >= 4)
@@ -231,7 +233,7 @@ public class PongClientUDP : MonoBehaviour
                             if (gameManager != null)
                             {
                                 if (team == 1) gameManager.Team1Scored();
-                                else gameManager.Team2Scored();
+                                else if (team == 2) gameManager.Team2Scored();
                             }
                         });
                     }
@@ -251,7 +253,18 @@ public class PongClientUDP : MonoBehaviour
 
     void ResetGame()
     {
-        if (ball != null) ball.GetComponent<Ball>().Reset();
+        if (ball != null) 
+        {
+            var b = ball.GetComponent<Ball>();
+            if (b != null) b.Reset();
+            
+            // Player 1 reinicia a bola após reset
+            if (myId == 1)
+            {
+                b.StartRoundAfter(2f);
+            }
+        }
+        
         if (paddle1 != null) paddle1.GetComponent<Player>().Reset();
         if (paddle2 != null) paddle2.GetComponent<Player>().Reset();
         if (paddle3 != null) paddle3.GetComponent<Player>().Reset();

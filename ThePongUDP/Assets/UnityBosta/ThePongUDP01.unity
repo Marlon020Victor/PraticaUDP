@@ -273,9 +273,10 @@ GameObject:
   - component: {fileID: 368268667}
   - component: {fileID: 368268669}
   - component: {fileID: 368268668}
+  - component: {fileID: 368268670}
   m_Layer: 0
   m_Name: RightMapLimit
-  m_TagString: Map Limit Right
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -325,7 +326,7 @@ BoxCollider2D:
   m_CallbackLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
@@ -396,6 +397,19 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!114 &368268670
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 368268666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65d17527afa64ba47974e49898bd4673, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  isLeftGoal: 0
 --- !u!1 &419557618
 GameObject:
   m_ObjectHideFlags: 0
@@ -407,9 +421,10 @@ GameObject:
   - component: {fileID: 419557619}
   - component: {fileID: 419557621}
   - component: {fileID: 419557620}
+  - component: {fileID: 419557622}
   m_Layer: 0
   m_Name: LeftMapLimit
-  m_TagString: Map Limit Left
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -459,7 +474,7 @@ BoxCollider2D:
   m_CallbackLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
@@ -530,6 +545,19 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!114 &419557622
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 419557618}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65d17527afa64ba47974e49898bd4673, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  isLeftGoal: 1
 --- !u!1 &669782444
 GameObject:
   m_ObjectHideFlags: 0
