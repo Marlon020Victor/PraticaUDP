@@ -101,7 +101,7 @@ public class PongClientUDP : MonoBehaviour
                 Rigidbody2D ballRig = ball.GetComponent<Rigidbody2D>();
                 if (ballRig != null)
                 {
-                    ballRig.velocity = remoteBallVel;
+                    ballRig.linearVelocity = remoteBallVel;
                 }
             }
         }
@@ -163,7 +163,7 @@ public class PongClientUDP : MonoBehaviour
         {
             Vector3 pos = ball.transform.position;
             Rigidbody2D ballRig = ball.GetComponent<Rigidbody2D>();
-            Vector2 vel = ballRig != null ? ballRig.velocity : Vector2.zero;
+            Vector2 vel = ballRig != null ? ballRig.linearVelocity : Vector2.zero;
 
             string msg = $"BALL:{pos.x.ToString("F3", CultureInfo.InvariantCulture)};" +
                         $"{pos.y.ToString("F3", CultureInfo.InvariantCulture)};" +

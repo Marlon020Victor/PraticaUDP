@@ -1630,7 +1630,7 @@ MonoBehaviour:
   myId: 1
   gameStarted: 0
   totalPlayersConnected: 4
-  serverIP: 10.57.1.150
+  serverIP: 10.57.1.151
   serverPort: 5001
   player1Paddle: {fileID: 848685786}
   player2Paddle: {fileID: 1384828344}

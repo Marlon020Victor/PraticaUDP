@@ -56,9 +56,9 @@ public class Ball : MonoBehaviour
 
         if (Rig != null)
         {
-            Rig.velocity = Vector2.zero;
+            Rig.linearVelocity = Vector2.zero;
             Rig.angularVelocity = 0f;
-            Rig.velocity = new Vector2(x * StartingSpeed, y * StartingSpeed);
+            Rig.linearVelocity = new Vector2(x * StartingSpeed, y * StartingSpeed);
         }
         
         Debug.Log($"[BALL] Velocidade inicial: ({x * StartingSpeed}, {y * StartingSpeed})");
@@ -70,7 +70,7 @@ public class Ball : MonoBehaviour
         
         if (Rig != null)
         {
-            Rig.velocity = Vector2.zero;
+            Rig.linearVelocity = Vector2.zero;
             Rig.angularVelocity = 0f;
         }
         
