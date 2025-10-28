@@ -3,10 +3,16 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody2D))]
 public class Ball : MonoBehaviour
 {
+    [Header("Refs")]
     [SerializeField] private Rigidbody2D Rig;
-    [SerializeField] private float StartingSpeed = 8f;
-    [SerializeField] private Vector3 startPosition;
 
+    [Header("Config")]
+    [SerializeField] private float StartingSpeed = 8f;
+
+    [Header("Debug")]
+    public bool debugVerbose = true;
+
+    private Vector3 startPosition;
     private PongClientUDP networkClient;
     private bool hasStarted = false;
 
@@ -24,6 +30,7 @@ public class Ball : MonoBehaviour
     {
         startPosition = transform.position;
         networkClient = FindFirstObjectByType<PongClientUDP>();
+        // Mantemos a verificação periódica como fallback
         InvokeRepeating(nameof(CheckAndStart), 0.2f, 0.2f);
     }
 
@@ -33,7 +40,6 @@ public class Ball : MonoBehaviour
 
         if (networkClient.gameStarted && networkClient.totalPlayersConnected >= 2)
         {
-            // Apenas player 1 lança a bola
             if (networkClient.myId == 1)
             {
                 BallInitialMovement();
@@ -41,6 +47,28 @@ public class Ball : MonoBehaviour
             hasStarted = true;
             CancelInvoke(nameof(CheckAndStart));
         }
+    }
+
+    public void StartAsAuthoritative()
+    {
+        // Chamado pelo cliente ID 1 assim que recebe START
+        if (networkClient == null) networkClient = FindFirstObjectByType<PongClientUDP>();
+        if (networkClient != null && networkClient.myId == 1)
+        {
+            if (debugVerbose) Debug.Log("[BALL] StartAsAuthoritative()");
+            BallInitialMovement();
+            hasStarted = true;
+            CancelInvoke(nameof(CheckAndStart));
+        }
+    }
+
+    public void MarkAsNonAuthoritativeClient()
+    {
+        // Chamado pelos clientes != 1 assim que recebem START
+        if (debugVerbose) Debug.Log("[BALL] MarkAsNonAuthoritativeClient()");
+        hasStarted = true; // para não tentar lançar localmente
+        // mantemos o Invoke cancelado — vamos só seguir estado remoto
+        CancelInvoke(nameof(CheckAndStart));
     }
 
     private void BallInitialMovement()
@@ -52,7 +80,9 @@ public class Ball : MonoBehaviour
         Rig.angularVelocity = 0f;
         Rig.WakeUp();
         Rig.linearVelocity = new Vector2(x * StartingSpeed, y * StartingSpeed);
-        Debug.Log($"[BALL] Lançada com velocidade ({Rig.linearVelocity.x:F2}, {Rig.linearVelocity.y:F2})");
+
+        if (debugVerbose)
+            Debug.Log($"[BALL] Lançada com velocidade ({Rig.linearVelocity.x:F2}, {Rig.linearVelocity.y:F2})");
     }
 
     public void Reset()
@@ -63,7 +93,10 @@ public class Ball : MonoBehaviour
         Rig.angularVelocity = 0f;
         Rig.WakeUp();
 
+        // recomeça a verificação — START pode vir de novo depois de gols/reset
         CancelInvoke(nameof(CheckAndStart));
         InvokeRepeating(nameof(CheckAndStart), 0.2f, 0.2f);
+
+        if (debugVerbose) Debug.Log("[BALL] Reset()");
     }
 }

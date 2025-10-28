@@ -12,6 +12,7 @@ public class PongClientUDP : MonoBehaviour
     Thread receiveThread;
     IPEndPoint serverEP;
 
+    [Header("Estado do Cliente")]
     public int myId = -1;
     public bool gameStarted = false;
     public int totalPlayersConnected = 0;
@@ -28,25 +29,42 @@ public class PongClientUDP : MonoBehaviour
     public GameObject ball;
     public GameManager gameManager;
 
-    private Dictionary<int, float> remotePlayersY = new Dictionary<int, float>();
+    [Header("Net Sync")]
+    [Tooltip("Intervalo de envio em segundos")]
+    public float sendRate = 0.03f;
+
+    [Header("Debug")]
+    public bool debugVerbose = true;
+    public bool drawBallAuthorityGizmo = true;
+
+    // Estado remoto
+    private readonly Dictionary<int, float> remotePlayersY = new Dictionary<int, float>();
     private Vector2 remoteBallPos = Vector2.zero;
     private Vector2 remoteBallVel = Vector2.zero;
     private bool updateRemoteBall = false;
 
-    private float sendRate = 0.03f;
+    // Timers
     private float lastSendTime = 0f;
     private float lastPaddleSendTime = 0f;
+
+    // Métricas e debug
+    private float lastBallPacketTime = -1f;
+    private float lastPaddlePacketTime = -1f;
+    private string lastServerMsg = "";
+    private float approxPingMs = -1f;
+    private double lastPingSendTime = 0;
+    private const string PingToken = "PING";
+    private const string PongToken = "PONG";
 
     void Start()
     {
         _ = UnityMainThreadDispatcher.Instance();
 
         for (int i = 1; i <= 4; i++)
-        {
             remotePlayersY[i] = 0f;
-        }
 
         ConnectToServer();
+        InvokeRepeating(nameof(SendPing), 1f, 2f); // ping simples p/ estimar latência
     }
 
     void ConnectToServer()
@@ -58,14 +76,15 @@ public class PongClientUDP : MonoBehaviour
             client.Connect(serverEP);
 
             receiveThread = new Thread(ReceiveData);
+            receiveThread.IsBackground = true;
             receiveThread.Start();
 
             SendMessage("HELLO");
-            Debug.Log("[CLIENTE] Conectado ao servidor " + serverIP + ":" + serverPort);
+            Log($"Conectado ao servidor {serverIP}:{serverPort}");
         }
         catch (System.Exception e)
         {
-            Debug.LogError("[CLIENTE] Erro ao conectar: " + e.Message);
+            LogError("Erro ao conectar: " + e.Message);
         }
     }
 
@@ -75,6 +94,7 @@ public class PongClientUDP : MonoBehaviour
 
         UpdateRemotePaddles();
 
+        // Autoridade da bola: somente ID 1 simula e envia estado
         if (myId == 1 && gameStarted)
         {
             if (Time.time - lastSendTime > sendRate)
@@ -85,6 +105,7 @@ public class PongClientUDP : MonoBehaviour
         }
         else
         {
+            // Clientes não-autoritativos apenas aplicam estado remoto
             if (updateRemoteBall && ball != null)
             {
                 ball.transform.position = Vector3.Lerp(
@@ -93,7 +114,7 @@ public class PongClientUDP : MonoBehaviour
                     Time.deltaTime * 15f
                 );
 
-                Rigidbody2D ballRig = ball.GetComponent<Rigidbody2D>();
+                var ballRig = ball.GetComponent<Rigidbody2D>();
                 if (ballRig != null)
                 {
                     ballRig.linearVelocity = remoteBallVel;
@@ -114,60 +135,61 @@ public class PongClientUDP : MonoBehaviour
         for (int i = 1; i <= 4; i++)
         {
             if (i == myId) continue;
-
             GameObject paddle = GetPaddleById(i);
-            if (paddle != null && remotePlayersY.ContainsKey(i))
+            if (!paddle) continue;
+
+            if (remotePlayersY.TryGetValue(i, out float ry))
             {
                 var player = paddle.GetComponent<Player>();
                 if (player != null)
-                    player.ApplyRemotePosition(remotePlayersY[i]);
+                    player.ApplyRemotePosition(ry);
             }
         }
     }
 
     GameObject GetPaddleById(int id)
     {
-        return id switch
+        switch (id)
         {
-            1 => player1Paddle,
-            2 => player2Paddle,
-            3 => player3Paddle,
-            4 => player4Paddle,
-            _ => null
-        };
+            case 1: return player1Paddle;
+            case 2: return player2Paddle;
+            case 3: return player3Paddle;
+            case 4: return player4Paddle;
+        }
+        return null;
     }
 
     void SendPaddleData()
     {
         GameObject myPaddle = GetPaddleById(myId);
-        if (myPaddle != null)
-        {
-            float y = myPaddle.transform.position.y;
-            string msg = $"PADDLE:{myId};{y.ToString("F3", CultureInfo.InvariantCulture)}";
-            SendMessage(msg);
-        }
+        if (!myPaddle) return;
+
+        float y = myPaddle.transform.position.y;
+        string msg = $"PADDLE:{myId};{y.ToString("F3", CultureInfo.InvariantCulture)}";
+        SendMessage(msg);
+        lastPaddlePacketTime = Time.time;
     }
 
     void SendBallData()
     {
-        if (ball != null)
-        {
-            Vector3 pos = ball.transform.position;
-            Rigidbody2D ballRig = ball.GetComponent<Rigidbody2D>();
-            Vector2 vel = ballRig != null ? ballRig.linearVelocity : Vector2.zero;
+        if (!ball) return;
 
-            string msg = $"BALL:{pos.x.ToString("F3", CultureInfo.InvariantCulture)};" +
-                        $"{pos.y.ToString("F3", CultureInfo.InvariantCulture)};" +
-                        $"{vel.x.ToString("F3", CultureInfo.InvariantCulture)};" +
-                        $"{vel.y.ToString("F3", CultureInfo.InvariantCulture)}";
-            SendMessage(msg);
-        }
+        Vector3 pos = ball.transform.position;
+        var ballRig = ball.GetComponent<Rigidbody2D>();
+        Vector2 vel = ballRig ? ballRig.linearVelocity : Vector2.zero;
+
+        string msg = $"BALL:{pos.x.ToString("F3", CultureInfo.InvariantCulture)};" +
+                     $"{pos.y.ToString("F3", CultureInfo.InvariantCulture)};" +
+                     $"{vel.x.ToString("F3", CultureInfo.InvariantCulture)};" +
+                     $"{vel.y.ToString("F3", CultureInfo.InvariantCulture)}";
+        SendMessage(msg);
+        lastBallPacketTime = Time.time;
     }
 
     public void SendGoalScored(int scoringTeam)
     {
         SendMessage($"GOAL:{scoringTeam};1");
-        Debug.Log($"[CLIENTE] Enviando gol do Time {scoringTeam}");
+        Log($"Enviando gol do Time {scoringTeam}");
     }
 
     public void SendReset()
@@ -175,7 +197,7 @@ public class PongClientUDP : MonoBehaviour
         if (myId == 1)
         {
             SendMessage("RESET");
-            Debug.Log("[CLIENTE] Enviando comando de reset");
+            Log("Enviando comando de reset");
         }
     }
 
@@ -184,6 +206,7 @@ public class PongClientUDP : MonoBehaviour
         if (client == null) return;
         byte[] data = Encoding.UTF8.GetBytes(message);
         client.Send(data, data.Length);
+        if (debugVerbose) LogNet($"=> {message}");
     }
 
     void ReceiveData()
@@ -196,18 +219,23 @@ public class PongClientUDP : MonoBehaviour
             {
                 byte[] data = client.Receive(ref remoteEP);
                 string msg = Encoding.UTF8.GetString(data);
+                lastServerMsg = msg;
+                if (debugVerbose) LogNet($"<= {msg}");
 
                 if (msg.StartsWith("ASSIGN:"))
                 {
                     myId = int.Parse(msg.Substring(7));
-                    Debug.Log($"[CLIENTE] Meu ID = {myId}");
+                    Log($"Meu ID = {myId}");
 
+                    // setar local player e enviar posição inicial do paddle IMEDIATAMENTE
                     GameObject myPaddle = GetPaddleById(myId);
                     if (myPaddle != null)
                     {
                         var pl = myPaddle.GetComponent<Player>();
                         if (pl) pl.isLocalPlayer = true;
                     }
+                    // evita “paddle invisível” até o jogador se mexer
+                    UnityMainThreadDispatcher.Instance().Enqueue(SendPaddleData);
                 }
                 else if (msg.StartsWith("START"))
                 {
@@ -220,7 +248,23 @@ public class PongClientUDP : MonoBehaviour
 
                     totalPlayersConnected = parsedTotal > 0 ? parsedTotal : 2;
                     gameStarted = true;
-                    Debug.Log($"[CLIENTE] Jogo iniciado com {totalPlayersConnected} jogadores!");
+                    Log($"Jogo iniciado com {totalPlayersConnected} jogadores!");
+
+                    // dispara a bola de forma determinística ASSIM QUE o START chegar
+                    UnityMainThreadDispatcher.Instance().Enqueue(() =>
+                    {
+                        if (ball != null)
+                        {
+                            var b = ball.GetComponent<Ball>();
+                            if (b != null)
+                            {
+                                if (myId == 1)
+                                    b.StartAsAuthoritative(); // só ID 1 lança
+                                else
+                                    b.MarkAsNonAuthoritativeClient(); // outros só seguem
+                            }
+                        }
+                    });
                 }
                 else if (msg.StartsWith("PADDLE:"))
                 {
@@ -253,10 +297,20 @@ public class PongClientUDP : MonoBehaviour
                 {
                     UnityMainThreadDispatcher.Instance().Enqueue(() => ResetGame());
                 }
+                else if (msg.StartsWith(PingToken))
+                {
+                    // ecoa PONG (só como exemplo; seu servidor já pode estar ignorando isso)
+                    SendMessage(PongToken);
+                }
+                else if (msg.StartsWith(PongToken))
+                {
+                    // se seu servidor algum dia refletir o ping, calcula latência aqui
+                    approxPingMs = (float)((Time.realtimeSinceStartupAsDouble - lastPingSendTime) * 1000.0);
+                }
             }
             catch (System.Exception e)
             {
-                Debug.LogError("[CLIENTE] Erro ao receber: " + e.Message);
+                LogError("Erro ao receber: " + e.Message);
                 break;
             }
         }
@@ -264,19 +318,54 @@ public class PongClientUDP : MonoBehaviour
 
     void ResetGame()
     {
-        Debug.Log("[CLIENTE] Resetando jogo...");
+        Log("Resetando jogo...");
         ball?.GetComponent<Ball>()?.Reset();
         player1Paddle?.GetComponent<Player>()?.Reset();
         player2Paddle?.GetComponent<Player>()?.Reset();
         player3Paddle?.GetComponent<Player>()?.Reset();
         player4Paddle?.GetComponent<Player>()?.Reset();
+
+        // em clientes não-autoritativos, certifique-se de que continuaremos seguindo estado da bola
+        if (myId != 1) updateRemoteBall = true;
     }
 
     void OnApplicationQuit()
     {
         if (receiveThread != null && receiveThread.IsAlive)
             receiveThread.Abort();
-
         client?.Close();
+    }
+
+    // ===== Debug helpers =====
+    void SendPing()
+    {
+        lastPingSendTime = Time.realtimeSinceStartupAsDouble;
+        SendMessage(PingToken);
+    }
+
+    void Log(string msg) => Debug.Log($"[CLIENTE][ID:{myId}] {msg}");
+    void LogError(string msg) => Debug.LogError($"[CLIENTE][ID:{myId}] {msg}");
+    void LogNet(string msg) { if (debugVerbose) Debug.Log($"[NET][ID:{myId}] {msg}"); }
+
+    void OnGUI()
+    {
+        if (!debugVerbose) return;
+
+        GUILayout.BeginArea(new Rect(10, 10, 420, 180), GUI.skin.box);
+        GUILayout.Label($"ID: {myId} | Started: {gameStarted} | Total: {totalPlayersConnected}");
+        GUILayout.Label($"Última msg do server: {lastServerMsg}");
+        GUILayout.Label($"Último envio BALL: {(lastBallPacketTime < 0 ? "-" : (Time.time - lastBallPacketTime).ToString("F2")+"s")} | " +
+                        $"Último envio PADDLE: {(lastPaddlePacketTime < 0 ? "-" : (Time.time - lastPaddlePacketTime).ToString("F2")+"s")}");
+        GUILayout.Label($"Ping ~ {(approxPingMs < 0 ? "?" : approxPingMs.ToString("F0"))} ms (estimativa)");
+        GUILayout.Label(myId == 1 ? "Autoridade da Bola: ESTE CLIENTE" : "Autoridade da Bola: CLIENTE 1");
+        if (GUILayout.Button("Forçar RESET (apenas ID1)")) SendReset();
+        GUILayout.EndArea();
+    }
+
+    void OnDrawGizmos()
+    {
+        if (!drawBallAuthorityGizmo || !ball) return;
+        Gizmos.color = (myId == 1) ? Color.yellow : Color.cyan;
+        Gizmos.DrawWireSphere(ball.transform.position, 0.4f);
     }
 }
