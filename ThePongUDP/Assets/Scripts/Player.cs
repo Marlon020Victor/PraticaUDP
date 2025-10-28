@@ -2,18 +2,17 @@ using UnityEngine;
 
 public class Player : MonoBehaviour
 {
-    [SerializeField]
-    private Rigidbody2D Rig;
+    [SerializeField] private Rigidbody2D Rig;
     public float MoveSpeed = 10f;
     public Vector3 startPosition;
 
     [Header("Multiplayer")]
     public bool isLocalPlayer = true;
-    public int playerNumber = 1; // agora pode ser 1..4
+    public int playerNumber = 1; // 1..4
 
     private PongClientUDP networkClient;
 
-    private void Start()
+    void Start()
     {
         startPosition = transform.position;
         networkClient = FindFirstObjectByType<PongClientUDP>();
@@ -22,23 +21,25 @@ public class Player : MonoBehaviour
     void Update()
     {
         if (networkClient != null)
-        {
             isLocalPlayer = (networkClient.myId == playerNumber);
-        }
 
         if (isLocalPlayer)
-        {
             PlayMovement();
-        }
     }
 
-    private void PlayMovement()
+    void PlayMovement()
     {
-        // como cada cliente controla um id único, as teclas podem ser as mesmas
-        bool up = Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow);
-        bool down = Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow);
+        bool up = false, down = false;
 
-        if (up) transform.Translate(Vector2.up * MoveSpeed * Time.deltaTime);
+        switch (playerNumber)
+        {
+            case 1: up = Input.GetKey(KeyCode.UpArrow);   down = Input.GetKey(KeyCode.DownArrow); break;
+            case 2: up = Input.GetKey(KeyCode.W);         down = Input.GetKey(KeyCode.S);         break;
+            case 3: up = Input.GetKey(KeyCode.T);         down = Input.GetKey(KeyCode.G);         break;
+            case 4: up = Input.GetKey(KeyCode.Y);         down = Input.GetKey(KeyCode.H);         break;
+        }
+
+        if (up)   transform.Translate(Vector2.up * MoveSpeed * Time.deltaTime);
         if (down) transform.Translate(Vector2.down * MoveSpeed * Time.deltaTime);
     }
 

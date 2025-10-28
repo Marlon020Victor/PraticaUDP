@@ -2,50 +2,33 @@ using UnityEngine;
 
 public class Ball : MonoBehaviour
 {
-    [SerializeField]
-    private Rigidbody2D Rig;
+    [SerializeField] private Rigidbody2D Rig;
+    [SerializeField] private Vector3 startPosition;
+    [SerializeField] private float StartingSpeed = 8f;
 
-    [SerializeField] 
-    private Vector3 startPosition;
-    
-    [SerializeField]
-    private float StartingSpeed = 8f;
-    
-    private PongClientUDP networkClient;
-    
     void Start()
     {
         startPosition = transform.position;
-        networkClient = FindFirstObjectByType<PongClientUDP>();
-        
-        // Aguarda conexão para iniciar
-        Invoke("CheckAndStart", 1f);
+        // Não inicia aqui — quem chama é o cliente (ID1) após START
     }
-    
-    void CheckAndStart()
+
+    public void StartRoundAfter(float delaySec)
     {
-        // Apenas o player 1 inicia a bola
-        if (networkClient != null && networkClient.myId == 1)
-        {
-            BallInitialMovement();
-        }
+        CancelInvoke();
+        Invoke(nameof(BallInitialMovement), Mathf.Max(0f, delaySec));
     }
-    
-    private void BallInitialMovement()
+
+    void BallInitialMovement()
     {
-        // Direção aleatória
         float x = Random.Range(0, 2) == 0 ? -1f : 1f;
         float y = Random.Range(-1f, 1f);
-        
         Rig.linearVelocity = new Vector2(x * StartingSpeed, y * StartingSpeed);
     }
-    
+
     public void Reset()
     {
         Rig.linearVelocity = Vector2.zero;
         transform.position = startPosition;
-        
-        // Aguarda um momento antes de reiniciar
-        Invoke("BallInitialMovement", 1f);
+        // Round será reiniciado pelo cliente (ID1) após RESET broadcast
     }
 }
