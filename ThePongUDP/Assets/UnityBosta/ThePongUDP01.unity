@@ -1969,6 +1969,9 @@ MonoBehaviour:
   Rig: {fileID: 1459931632}
   startPosition: {x: 0, y: 0, z: 0}
   StartingSpeed: 8
+  maxSpeed: 15
+  speedIncrease: 1.05
+  minSpeed: 5
 --- !u!50 &1459931632
 Rigidbody2D:
   serializedVersion: 5
@@ -1994,7 +1997,7 @@ Rigidbody2D:
     m_Bits: 0
   m_Interpolate: 0
   m_SleepingMode: 1
-  m_CollisionDetection: 0
+  m_CollisionDetection: 1
   m_Constraints: 4
 --- !u!212 &1459931634
 SpriteRenderer:
