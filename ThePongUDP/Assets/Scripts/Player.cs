@@ -7,32 +7,45 @@ public class Player : MonoBehaviour
     public Vector3 startPosition;
 
     [Header("Multiplayer")]
-    public bool isLocalPlayer = true;
     public int playerNumber = 1; // 1..4
 
     private PongClientUDP networkClient;
     private float lastSendTime = 0f;
-    private float sendRate = 0.05f; // Envia posição 20x por segundo
+    private float sendRate = 0.05f;
+    private float lastY = 0f;
 
     void Start()
     {
         startPosition = transform.position;
         networkClient = FindFirstObjectByType<PongClientUDP>();
+        
+        if (networkClient == null)
+        {
+            Debug.LogError($"[Player {playerNumber}] NetworkClient não encontrado!");
+        }
+        
+        Debug.Log($"[Player {playerNumber}] Inicializado na posição {transform.position}");
     }
 
     void Update()
     {
-        if (networkClient != null)
-            isLocalPlayer = (networkClient.myId == playerNumber);
+        if (networkClient == null) return;
+
+        // Verifica se este paddle pertence a este cliente
+        bool isLocalPlayer = (networkClient.myId == playerNumber);
 
         if (isLocalPlayer)
         {
             PlayMovement();
             
-            // Envia a posição para a rede
+            // Envia posição apenas se mudou significativamente
             if (Time.time - lastSendTime > sendRate)
             {
-                SendPosition();
+                if (Mathf.Abs(transform.position.y - lastY) > 0.01f)
+                {
+                    SendPosition();
+                    lastY = transform.position.y;
+                }
                 lastSendTime = Time.time;
             }
         }
@@ -42,6 +55,7 @@ public class Player : MonoBehaviour
     {
         bool up = false, down = false;
 
+        // CADA PLAYER TEM CONTROLES ÚNICOS
         switch (playerNumber)
         {
             case 1: 
@@ -62,15 +76,25 @@ public class Player : MonoBehaviour
                 break;
         }
 
-        if (up)   transform.Translate(Vector2.up * MoveSpeed * Time.deltaTime);
-        if (down) transform.Translate(Vector2.down * MoveSpeed * Time.deltaTime);
+        if (up)   
+        {
+            transform.Translate(Vector2.up * MoveSpeed * Time.deltaTime);
+            Debug.Log($"[Player {playerNumber}] Movendo para cima: Y={transform.position.y:F2}");
+        }
+        if (down) 
+        {
+            transform.Translate(Vector2.down * MoveSpeed * Time.deltaTime);
+            Debug.Log($"[Player {playerNumber}] Movendo para baixo: Y={transform.position.y:F2}");
+        }
     }
 
     void SendPosition()
     {
         if (networkClient != null && networkClient.myId == playerNumber)
         {
-            networkClient.SendPaddlePosition(playerNumber, transform.position.y);
+            float y = transform.position.y;
+            networkClient.SendPaddlePosition(playerNumber, y);
+            Debug.Log($"[Player {playerNumber}] Enviando posição Y={y:F2} para servidor");
         }
     }
 
@@ -78,5 +102,6 @@ public class Player : MonoBehaviour
     {
         if (Rig != null) Rig.linearVelocity = Vector2.zero;
         transform.position = startPosition;
+        lastY = startPosition.y;
     }
 }

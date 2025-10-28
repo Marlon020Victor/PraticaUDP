@@ -13,7 +13,7 @@ public class Goal : MonoBehaviour
         networkClient = FindFirstObjectByType<PongClientUDP>();
     }
 
-    private void OnTriggerEnter2D(Collider2D collision)
+    private void OnColliderEnter2D(Collider2D collision)
     {
         if (!collision.gameObject.CompareTag("Ball") || goalProcessed) return;
         goalProcessed = true;

@@ -154,7 +154,6 @@ MonoBehaviour:
   Rig: {fileID: 0}
   MoveSpeed: 10
   startPosition: {x: 0, y: 0, z: 0}
-  isLocalPlayer: 1
   playerNumber: 2
 --- !u!212 &268041884
 SpriteRenderer:
@@ -438,6 +437,55 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   isLeftGoal: 0
+--- !u!1 &419400284
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 419400286}
+  - component: {fileID: 419400285}
+  m_Layer: 0
+  m_Name: Debug
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &419400285
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 419400284}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72a64d7115c4c6748bfbad98b832e218, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  networkClient: {fileID: 1372961493}
+  paddle1: {fileID: 848685786}
+  paddle2: {fileID: 268041881}
+  paddle3: {fileID: 1090853191}
+  paddle4: {fileID: 727608251}
+--- !u!4 &419400286
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 419400284}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -3.7004452, y: 0.41316035, z: -0.043455277}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &419557618
 GameObject:
   m_ObjectHideFlags: 0
@@ -815,8 +863,7 @@ MonoBehaviour:
   Rig: {fileID: 0}
   MoveSpeed: 10
   startPosition: {x: 0, y: 0, z: 0}
-  isLocalPlayer: 1
-  playerNumber: 2
+  playerNumber: 4
 --- !u!212 &727608254
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -1087,7 +1134,6 @@ MonoBehaviour:
   Rig: {fileID: 0}
   MoveSpeed: 10
   startPosition: {x: 0, y: 0, z: 0}
-  isLocalPlayer: 1
   playerNumber: 1
 --- !u!212 &848685789
 SpriteRenderer:
@@ -1295,8 +1341,7 @@ MonoBehaviour:
   Rig: {fileID: 0}
   MoveSpeed: 10
   startPosition: {x: 0, y: 0, z: 0}
-  isLocalPlayer: 1
-  playerNumber: 2
+  playerNumber: 3
 --- !u!212 &1090853194
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -1949,7 +1994,7 @@ Rigidbody2D:
     m_Bits: 0
   m_Interpolate: 0
   m_SleepingMode: 1
-  m_CollisionDetection: 1
+  m_CollisionDetection: 0
   m_Constraints: 4
 --- !u!212 &1459931634
 SpriteRenderer:
@@ -2468,3 +2513,4 @@ SceneRoots:
   - {fileID: 709069931}
   - {fileID: 1372961492}
   - {fileID: 1550223548}
+  - {fileID: 419400286}
