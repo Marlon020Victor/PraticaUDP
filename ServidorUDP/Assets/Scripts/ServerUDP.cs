@@ -11,23 +11,24 @@ public class ServerUDP : MonoBehaviour
     UdpClient server;
     IPEndPoint anyEP;
     Thread receiveThread;
-    
+
+    // chave "<ip:porta>" -> id
     Dictionary<string, int> clientIds = new Dictionary<string, int>();
+    // estado dos paddles por id (1..4)
     Dictionary<int, PlayerData> playerPositions = new Dictionary<int, PlayerData>();
+
     BallData ballData = new BallData();
-    
+
     int nextId = 1;
-    int maxPlayers = 2;
-    
-    bool ballInitialized = false;
-    
+    int maxPlayers = 4; // <— agora são 4
+
     [System.Serializable]
     public class PlayerData
     {
         public float y;
         public IPEndPoint endpoint;
     }
-    
+
     [System.Serializable]
     public class BallData
     {
@@ -43,7 +44,7 @@ public class ServerUDP : MonoBehaviour
         anyEP = new IPEndPoint(IPAddress.Any, 0);
         receiveThread = new Thread(ReceiveData);
         receiveThread.Start();
-        
+
         Debug.Log("[SERVIDOR] Iniciado na porta 5001");
     }
 
@@ -68,21 +69,22 @@ public class ServerUDP : MonoBehaviour
                             Debug.Log("[SERVIDOR] Rejeitado cliente - servidor cheio");
                             continue;
                         }
-                        
+
                         clientIds[key] = nextId;
                         playerPositions[nextId] = new PlayerData { y = 0, endpoint = anyEP };
-                        
+
                         string assignMsg = "ASSIGN:" + nextId;
                         server.Send(Encoding.UTF8.GetBytes(assignMsg), assignMsg.Length, anyEP);
-                        
+
                         Debug.Log($"[SERVIDOR] Cliente {nextId} conectado");
-                        
+
+                        // quando os 4 entrarem, começa
                         if (clientIds.Count == maxPlayers)
                         {
                             BroadcastToAll("START");
                             Debug.Log("[SERVIDOR] Jogo iniciado!");
                         }
-                        
+
                         nextId++;
                     }
                 }
@@ -92,12 +94,13 @@ public class ServerUDP : MonoBehaviour
                     {
                         int id = clientIds[key];
                         string[] parts = msg.Substring(7).Split(';');
-                        
+
                         if (parts.Length >= 1)
                         {
                             float y = float.Parse(parts[0], CultureInfo.InvariantCulture);
                             playerPositions[id].y = y;
-                            
+
+                            // avisa todo mundo qual id mudou
                             string broadcast = $"PADDLE:{id};{y.ToString("F3", CultureInfo.InvariantCulture)}";
                             BroadcastToAll(broadcast);
                         }
@@ -105,35 +108,31 @@ public class ServerUDP : MonoBehaviour
                 }
                 else if (msg.StartsWith("BALL:"))
                 {
+                    // bola só é aceita do player 1 (autoridade)
                     if (clientIds.ContainsKey(key) && clientIds[key] == 1)
                     {
                         string[] parts = msg.Substring(5).Split(';');
-                        
+
                         if (parts.Length >= 4)
                         {
                             ballData.x = float.Parse(parts[0], CultureInfo.InvariantCulture);
                             ballData.y = float.Parse(parts[1], CultureInfo.InvariantCulture);
                             ballData.vx = float.Parse(parts[2], CultureInfo.InvariantCulture);
                             ballData.vy = float.Parse(parts[3], CultureInfo.InvariantCulture);
-                            
+
                             BroadcastToAll(msg);
                         }
                     }
                 }
                 else if (msg.StartsWith("GOAL:"))
                 {
-                    if (clientIds.ContainsKey(key))
-                    {
-                        string[] parts = msg.Substring(5).Split(';');
-                        if (parts.Length >= 2)
-                        {
-                            BroadcastToAll(msg);
-                            Debug.Log($"[SERVIDOR] Gol marcado! {msg}");
-                        }
-                    }
+                    // apenas roteia
+                    BroadcastToAll(msg);
+                    Debug.Log($"[SERVIDOR] Gol marcado! {msg}");
                 }
                 else if (msg.StartsWith("RESET"))
                 {
+                    // reset só é aceito do player 1
                     if (clientIds.ContainsKey(key) && clientIds[key] == 1)
                     {
                         BroadcastToAll("RESET");
@@ -147,11 +146,11 @@ public class ServerUDP : MonoBehaviour
             }
         }
     }
-    
+
     void BroadcastToAll(string message)
     {
         byte[] data = Encoding.UTF8.GetBytes(message);
-        
+
         foreach (var kvp in clientIds)
         {
             var parts = kvp.Key.Split(':');
@@ -159,7 +158,7 @@ public class ServerUDP : MonoBehaviour
                 IPAddress.Parse(parts[0]),
                 int.Parse(parts[1])
             );
-            
+
             server.Send(data, data.Length, ep);
         }
     }
@@ -170,7 +169,7 @@ public class ServerUDP : MonoBehaviour
         {
             receiveThread.Abort();
         }
-        
+
         if (server != null)
         {
             server.Close();

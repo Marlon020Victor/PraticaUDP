@@ -1,6 +1,4 @@
 using UnityEngine;
-using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 
 public class GameManager : MonoBehaviour
@@ -10,55 +8,47 @@ public class GameManager : MonoBehaviour
     [Header("Ball")]
     public GameObject ball;
 
-    [Header("Player 1")]
-    public GameObject player1Paddle;
-    public GameObject player1Goal;
+    [Header("Team A (Left)")]
+    public GameObject paddle1;
+    public GameObject paddle3;
+    public GameObject leftGoal; // opcional (referência na cena)
 
-    [Header("Player 2")]
-    public GameObject player2Paddle;
-    public GameObject player2Goal;
+    [Header("Team B (Right)")]
+    public GameObject paddle2;
+    public GameObject paddle4;
+    public GameObject rightGoal; // opcional (referência na cena)
 
-    [Header("Score UI")] 
-    public GameObject player1Text;
-    public GameObject player2Text;
+    [Header("Score UI")]
+    public GameObject team1Text;
+    public GameObject team2Text;
 
     [Header("Network")]
     public PongClientUDP networkClient; // atribuir no inspetor
 
-    private int player1Score;
-    private int player2Score;
-    public int maxScore; // pontuação máxima antes do reset
+    private int team1Score;
+    private int team2Score;
+    public int maxScore = 5;
 
-    public void Player1Scored()
+    public void Team1Scored()
     {
-        if (player1Paddle)
-            player1Score++;
-
-        player1Text.GetComponent<TextMeshProUGUI>().text = player1Score.ToString();
-        Debug.Log("O score mudou!");
-
+        team1Score++;
+        if (team1Text) team1Text.GetComponent<TextMeshProUGUI>().text = team1Score.ToString();
         CheckMaxScore();
     }
 
-    public void Player2Scored()
+    public void Team2Scored()
     {
-        if (player2Paddle)
-            player2Score++;
-
-        player2Text.GetComponent<TextMeshProUGUI>().text = player2Score.ToString();
-        Debug.Log("O score mudou!");
-
+        team2Score++;
+        if (team2Text) team2Text.GetComponent<TextMeshProUGUI>().text = team2Score.ToString();
         CheckMaxScore();
     }
 
-    // Checa se algum jogador atingiu a pontuação máxima
     private void CheckMaxScore()
     {
-        if (player1Score >= maxScore || player2Score >= maxScore)
+        if (team1Score >= maxScore || team2Score >= maxScore)
         {
             ResetAllScores();
 
-            // Apenas o player 1 envia o comando de reset para todos via rede
             if (networkClient != null && networkClient.myId == 1)
             {
                 networkClient.SendReset();
@@ -66,28 +56,24 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // Reseta as pontuações
     private void ResetAllScores()
     {
-        player1Score = 0;
-        player2Score = 0;
+        team1Score = 0;
+        team2Score = 0;
 
-        player1Text.GetComponent<TextMeshProUGUI>().text = "0";
-        player2Text.GetComponent<TextMeshProUGUI>().text = "0";
+        if (team1Text) team1Text.GetComponent<TextMeshProUGUI>().text = "0";
+        if (team2Text) team2Text.GetComponent<TextMeshProUGUI>().text = "0";
 
-        ResetPosition();
+        ResetPositions();
     }
 
-    // Reseta a posição da bola e paddles
-    private void ResetPosition()
+    private void ResetPositions()
     {
-        if (ball != null)
-            ball.GetComponent<Ball>().Reset();
+        if (ball) ball.GetComponent<Ball>().Reset();
 
-        if (player1Paddle != null)
-            player1Paddle.GetComponent<Player>().Reset();
-
-        if (player2Paddle != null)
-            player2Paddle.GetComponent<Player>().Reset();
+        if (paddle1) paddle1.GetComponent<Player>().Reset();
+        if (paddle2) paddle2.GetComponent<Player>().Reset();
+        if (paddle3) paddle3.GetComponent<Player>().Reset();
+        if (paddle4) paddle4.GetComponent<Player>().Reset();
     }
 }
