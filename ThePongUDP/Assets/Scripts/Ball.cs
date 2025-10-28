@@ -55,7 +55,7 @@ public class Ball : MonoBehaviour
     {
         if (Rig == null) return;
 
-        Rig.velocity = Vector2.zero;   // usar velocity (compat)
+        Rig.linearVelocity = Vector2.zero;   // usar velocity (compat)
         Rig.angularVelocity = 0f;
         Rig.WakeUp();
 
@@ -63,16 +63,16 @@ public class Ball : MonoBehaviour
         float y = Random.Range(-0.7f, 0.7f);
         Vector2 dir = new Vector2(x, y).normalized;
 
-        Rig.velocity = dir * StartingSpeed;
+        Rig.linearVelocity = dir * StartingSpeed;
 
-        Debug.Log($"[BALL] Bola iniciada! Vel={Rig.velocity}, pos={transform.position}");
+        Debug.Log($"[BALL] Bola iniciada! Vel={Rig.linearVelocity}, pos={transform.position}");
     }
 
     public void ResetBall()
     {
         if (Rig != null)
         {
-            Rig.velocity = Vector2.zero;
+            Rig.linearVelocity = Vector2.zero;
             Rig.angularVelocity = 0f;
             Rig.WakeUp();
         }
