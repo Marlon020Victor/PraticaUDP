@@ -19,9 +19,13 @@ public class LobbyClient : MonoBehaviour
 
     public int myId = -1;
     private bool isConnected = false;
+    private UnityMainThreadDispatcher mainThreadDispatcher;
 
     void Start()
     {
+        // CRÍTICO: Obtém referência ao dispatcher na thread principal
+        mainThreadDispatcher = UnityMainThreadDispatcher.Instance();
+        
         if (lobbyManager == null)
             lobbyManager = FindFirstObjectByType<LobbyManager>();
 
@@ -68,14 +72,14 @@ public class LobbyClient : MonoBehaviour
                     if (!string.IsNullOrEmpty(msg.Trim()))
                     {
                         string messageCopy = msg.Trim(); // Cópia para evitar problemas de closure
-                        UnityMainThreadDispatcher.Instance().Enqueue(() => ProcessMessage(messageCopy));
+                        mainThreadDispatcher.Enqueue(() => ProcessMessage(messageCopy));
                     }
                 }
             }
         }
         catch (System.Exception e)
         {
-            UnityMainThreadDispatcher.Instance().Enqueue(() => 
+            mainThreadDispatcher.Enqueue(() => 
             {
                 Debug.LogError($"[LOBBY CLIENT] Erro ao receber: {e.Message}");
             });
@@ -207,7 +211,7 @@ public class LobbyClient : MonoBehaviour
 
         // Carrega a cena do jogo
         // IMPORTANTE: Substitua "GameScene" pelo nome exato da sua cena de jogo
-        SceneManager.LoadScene("GameScene");
+        SceneManager.LoadScene("ThePongUDP01");
     }
 
     void OnApplicationQuit()
