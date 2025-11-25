@@ -1926,7 +1926,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   myId: 1
-  serverIP: 10.57.1.151
+  serverIP: 10.57.1.150
   serverPort: 5001
   paddle1: {fileID: 848685786}
   paddle2: {fileID: 268041881}

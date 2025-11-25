@@ -67,14 +67,18 @@ public class LobbyClient : MonoBehaviour
                 {
                     if (!string.IsNullOrEmpty(msg.Trim()))
                     {
-                        ProcessMessage(msg.Trim());
+                        string messageCopy = msg.Trim(); // Cópia para evitar problemas de closure
+                        UnityMainThreadDispatcher.Instance().Enqueue(() => ProcessMessage(messageCopy));
                     }
                 }
             }
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"[LOBBY CLIENT] Erro ao receber: {e.Message}");
+            UnityMainThreadDispatcher.Instance().Enqueue(() => 
+            {
+                Debug.LogError($"[LOBBY CLIENT] Erro ao receber: {e.Message}");
+            });
         }
         finally
         {
@@ -91,22 +95,14 @@ public class LobbyClient : MonoBehaviour
             myId = int.Parse(message.Substring(7));
             Debug.Log($"[LOBBY CLIENT] Meu ID atribuído: {myId}");
             
-            UnityMainThreadDispatcher.Instance().Enqueue(() =>
-            {
-                if (lobbyManager != null)
-                    lobbyManager.SetMyPlayerId(myId);
-            });
+            if (lobbyManager != null)
+                lobbyManager.SetMyPlayerId(myId);
         }
         else if (message.StartsWith("REJECT:"))
         {
             string reason = message.Substring(7);
             Debug.LogWarning($"[LOBBY CLIENT] Rejeitado: {reason}");
-            
-            UnityMainThreadDispatcher.Instance().Enqueue(() =>
-            {
-                // Aqui você pode mostrar uma mensagem na UI
-                Debug.LogError($"Não foi possível entrar: {reason}");
-            });
+            Debug.LogError($"Não foi possível entrar: {reason}");
         }
         else if (message.StartsWith("PLAYER_JOINED:"))
         {
@@ -116,11 +112,8 @@ public class LobbyClient : MonoBehaviour
                 int playerId = int.Parse(parts[0]);
                 string playerName = parts[1];
                 
-                UnityMainThreadDispatcher.Instance().Enqueue(() =>
-                {
-                    if (lobbyManager != null)
-                        lobbyManager.OnPlayerJoined(playerId, playerName);
-                });
+                if (lobbyManager != null)
+                    lobbyManager.OnPlayerJoined(playerId, playerName);
             }
         }
         else if (message.StartsWith("PLAYER_LEFT:"))
@@ -130,11 +123,8 @@ public class LobbyClient : MonoBehaviour
             {
                 int playerId = int.Parse(parts[0]);
                 
-                UnityMainThreadDispatcher.Instance().Enqueue(() =>
-                {
-                    if (lobbyManager != null)
-                        lobbyManager.OnPlayerLeft(playerId);
-                });
+                if (lobbyManager != null)
+                    lobbyManager.OnPlayerLeft(playerId);
             }
         }
         else if (message.StartsWith("READY_STATUS:"))
@@ -145,11 +135,8 @@ public class LobbyClient : MonoBehaviour
                 int playerId = int.Parse(parts[0]);
                 bool isReady = parts[1] == "1";
                 
-                UnityMainThreadDispatcher.Instance().Enqueue(() =>
-                {
-                    if (lobbyManager != null)
-                        lobbyManager.OnPlayerReadyChanged(playerId, isReady);
-                });
+                if (lobbyManager != null)
+                    lobbyManager.OnPlayerReadyChanged(playerId, isReady);
             }
         }
         else if (message.StartsWith("CHAT:"))
@@ -161,21 +148,14 @@ public class LobbyClient : MonoBehaviour
                 string senderName = parts[1];
                 string chatMessage = parts[2];
                 
-                UnityMainThreadDispatcher.Instance().Enqueue(() =>
-                {
-                    if (lobbyManager != null)
-                        lobbyManager.OnChatMessage(senderName, chatMessage);
-                });
+                if (lobbyManager != null)
+                    lobbyManager.OnChatMessage(senderName, chatMessage);
             }
         }
         else if (message.StartsWith("START_GAME"))
         {
             Debug.Log("[LOBBY CLIENT] Iniciando jogo!");
-            
-            UnityMainThreadDispatcher.Instance().Enqueue(() =>
-            {
-                StartGame();
-            });
+            StartGame();
         }
     }
 
@@ -227,7 +207,7 @@ public class LobbyClient : MonoBehaviour
 
         // Carrega a cena do jogo
         // IMPORTANTE: Substitua "GameScene" pelo nome exato da sua cena de jogo
-        SceneManager.LoadScene("ThePongUDP01");
+        SceneManager.LoadScene("GameScene");
     }
 
     void OnApplicationQuit()
